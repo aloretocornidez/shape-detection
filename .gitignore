@@ -30,3 +30,17 @@
 *.exe
 *.out
 *.app
+
+# Visual Files
+*.pdf
+
+# LaTeX Files
+*.aux
+*.bbl
+*.fdb_latexmk
+*.fls
+*.log
+*.synctex.gz
+*.blg
+
+
