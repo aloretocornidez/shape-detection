@@ -46,10 +46,21 @@ image analysis, parallelization, shape detection, telemetry
 % \section{Introduction}
 % This document is a model and instructions for \LaTeX.
 % Please observe the conference page limits. 
+\section*{Abstract}
+Many computer vision applications are implemented using machine learning approaches.
+While these implementations can perform very well, they require large datasets to train them.
+If training datasets are not available, not large enough, or not similar to the application, performance of the implementation can suffer.
+With this in mind, the Arizona Autonomous Vehicles Club decided to implement a computer vision algorithm that employs traditional image analysis techniques due to a lack of sufficient training data for a machine learning algorithm.
+The generalized hough transform\cite{BALLARD1981111} used to detect the shapes present in an image.
+In order to decrease execution time of the traditional image analysis approach, the algorithm was parallelized with a graphics processing unit (GPU).
+Performance profiling was done on both approaches where execution time and accuracy of both implementations was compared.
+
+
 \section*{Introdruction}
-In recent history, most image analysis applications have been implemented using machine learning, specifically, convolutional neural networks (CNN). 
+In recent history, most image analysis applications for computer vision have been implemented using machine learning, specifically, neural networks. 
 This project aims to implement traditional digital image analysis techniques to detect shapes in an image.
-This implementation shall be analyzed to provide infomration to the Arizona Autonomous (AZA) club at the University of Arizona.
+The generalized hough transform shall be implemented in a parallelized manner by utilizing a graphics processing unit (GPU).
+Perforamnce of this implementation shall be profiled in comparison to a machine learning algorithm implementation to provide infomration to the Arizona Autonomous (AZA) club at the University of Arizona.
 Analytical data on the performance of traditional image analysis techniques for shape detection will allow the AZA computer vision sub-team to select whether to proceed with a pure machine learning approach or 
 implement traditional image analysis techniques in their unmanned aerial vehicle (UAV) computer vision system.
 The images being analyzed are provided by an unmanned aerial vehicle (UAV) that points a camera to the ground.
@@ -59,9 +70,9 @@ The images being analyzed are provided by an unmanned aerial vehicle (UAV) that 
 There are many factors that can affect the performance of an image detection algorithm.
 First an foremost, there are algorithmic parameters that can affect the accuracy of shape detection.
 Performance factors that affect shape detection in particuar include the kind of shape matching algorithms used.
-When using edge-based shape matching algorithms, small shifts in shape orientation of position can greatly in large amounts of edge alignment of shapes \cite{5374408}.
-There are algorithms that can be used to mitigate orientation and position shift errors such as the Hausdorff Distance Algorithms \cite{232073}.
-Regardless, edge-based shape detection alorithms are subject to noise in an image resulting in false edges that make shape detection less accurate because of the sensitivity to noise and illumination changes in a frame \cite{5374408}. 
+% When using edge-based shape matching algorithms, small shifts in shape orientation of position can greatly in large amounts of edge alignment of shapes\cite{5374408}.
+% There are algorithms that can be used to mitigate orientation and position shift errors such as the Hausdorff Distance Algorithms \cite{232073}.
+% Regardless, edge-based shape detection alorithms are subject to noise in an image resulting in false edges that make shape detection less accurate because of the sensitivity to noise and illumination changes in a frame \cite{5374408}. 
 % Filtering techniques can be implemented to reduce the noise in an image, however implementing those techniques can introduce aliasing into that system \cite{5374408}.
 Region based shape matching algorithms can be used instead of pure edge detection so that that small rotations and translations of a shape do not affect detection.
 While region based shape matching can make shape detection more robust to small disturbances like geometric rotations and translations, it is limited by the complexity of shapes that are able to be captured.
