@@ -47,16 +47,22 @@ image analysis, parallelization, shape detection, telemetry
 % This document is a model and instructions for \LaTeX.
 % Please observe the conference page limits. 
 \section*{Abstract}
-Many computer vision applications are implemented using machine learning approaches.
-While these implementations can perform very well, they require large datasets to train them.
-If training datasets are not available, not large enough, or not similar to the application, performance of the implementation can suffer.
-With this in mind, the Arizona Autonomous Vehicles Club decided to implement a computer vision algorithm that employs traditional image analysis techniques due to a lack of sufficient training data for a machine learning algorithm.
-The generalized hough transform\cite{BALLARD1981111} used to detect the shapes present in an image.
-In order to decrease execution time of the traditional image analysis approach, the algorithm was parallelized with a graphics processing unit (GPU).
-Performance profiling was done on both approaches where execution time and accuracy of both implementations was compared.
+Modern day computer vision applications are frequently implemented using machine learning approaches.
+While these implementations can perform very well, the performance is heavily dependent on sufficient and accurate training data.
+Due to a lack of adequate training data, the Arizona Autonomous Vehicles Club (AZA) decided to implement the generalized hough transform to detect shapes in a live video feed from an unmanned aerial system (UAS).
+The Hough transform is computationally intensive and since real-time performance is required, a serial approach may not have the execution speed necessary for the application.
+Image processing techniques include matrix multiplication and convolution operations which are highly parallelizable.
+Therefore, the algorithm was parallelized and implemented on a graphics processing unit (GPU).
+Performance profiling was done on both machine learning and traditional approaches where execution time and accuracy were compared.
 
 
-\section*{Introdruction}
+% If training datasets are not available, not large enough, or not an accurate representation of the application, performance of the implementation model can suffer.
+%The generalized hough transform\cite{BALLARD1981111} is used to detect the shapes present in an image.
+
+
+
+\section*{Introduction}
+The generalized hough transform\cite{BALLARD1981111} is used to detect the shapes present in an image.
 In recent history, most image analysis applications for computer vision have been implemented using machine learning, specifically, neural networks. 
 This project aims to implement traditional digital image analysis techniques to detect shapes in an image.
 The generalized hough transform shall be implemented in a parallelized manner by utilizing a graphics processing unit (GPU).
