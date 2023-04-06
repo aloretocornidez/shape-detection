@@ -3,8 +3,8 @@
 
 using namespace cv;
 
-void openWindow(String windowName, Mat *image);
-void convolution(Mat *input, Mat *output);
+// void openWindow(String windowName, Mat *image);
+// void convolution(Mat *input, Mat *output);
 
 int main(int argc, char **argv)
 {
@@ -72,14 +72,14 @@ int main(int argc, char **argv)
   return 0;
 }
 
-void openWindow(String windowName, Mat *image)
-{
+// void openWindow(String windowName, Mat *image)
+// {
 
-  namedWindow(windowName); // Create a window
+//   namedWindow(windowName); // Create a window
 
-  imshow(windowName, *image); // Show our image inside the created window.
+//   imshow(windowName, *image); // Show our image inside the created window.
 
-  waitKey(0); // Wait for any keystroke in the window
+//   waitKey(0); // Wait for any keystroke in the window
 
-  destroyWindow(windowName); // destroy the created window
-}
+//   destroyWindow(windowName); // destroy the created window
+// }

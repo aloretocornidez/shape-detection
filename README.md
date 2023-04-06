@@ -5,7 +5,5 @@
 This is the latex project that contains the LaTeX code for the paper that was written.
 
 
-## src
-This contains the source code for the project.
-
-
+## main-project
+This is the code for the shape-detection project.
