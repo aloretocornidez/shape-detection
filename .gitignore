@@ -44,6 +44,6 @@
 *.blg
 
 
-build/
-CMakeFiles/
-CMakeCache.txt
+**/build/
+**/CMakeFiles/
+**/CMakeCache.txt
