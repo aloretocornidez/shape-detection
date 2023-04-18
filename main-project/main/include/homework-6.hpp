@@ -3,7 +3,7 @@
 
 #include <opencv2/opencv.hpp>
 
-void showImages(cv::Mat input, cv::Mat output);
+void showImage(cv::String name, cv::Mat input);
 
 
 

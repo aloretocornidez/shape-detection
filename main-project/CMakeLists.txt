@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-set(PROJECT_NAME "homework-6-driver")
+set(PROJECT_NAME "shape-detection-wrapper")
 
 project(${PROJECT_NAME})
 

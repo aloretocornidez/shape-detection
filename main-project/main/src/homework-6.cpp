@@ -1,11 +1,10 @@
 #include "homework-6.hpp"
 
-void showImages(cv::Mat input, cv::Mat output)
+void showImage(cv::String name, cv::Mat input)
 {
     using namespace cv;
-    imshow("Input", input);
+    imshow(name, input);
 
-    imshow("Output", output);
 
     waitKey(0);
 
