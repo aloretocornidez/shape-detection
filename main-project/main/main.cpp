@@ -1,6 +1,8 @@
-// #include "homework-6.hpp"
-// #include "erosion.hpp"
-// #include "dilation.hpp"
+#include <cuda_runtime.h>
+#include <cuda.h>
+#include "lodepng.h"
+#include "hough-transform.hpp"
+
 #include <opencv2/core/cuda.hpp>
 #include <opencv2/cudaimgproc.hpp>
 #include <opencv2/cudafilters.hpp>
@@ -12,6 +14,48 @@ using std::endl;
 
 int main(int argc, char **argv)
 {
+
+  int *input1;
+  int *input2;
+
+  int size = 5;
+
+  input1 = (int *)malloc(size * sizeof(int));
+  input2 = (int *)malloc(size * sizeof(int));
+  
+
+
+  for (int i = 0; i < size; i++)
+  {
+    input1[i] = i;
+    input2[i] = i;
+  }
+
+
+  // Print elements before add
+  std::cout << "Printing elements before adding." <<std::endl;
+  for(int i = 0; i < size; i++)
+  {
+    std::cout << input1[i] << " and " << input2[i] << std::endl;
+  }
+
+  // Call the GPU execution kernel.
+  addKernelWrapper(size, input1, input2);
+
+  // Print elements after add
+  std::cout << "Printing elements after adding." <<std::endl;
+  for(int i = 0; i < size; i++)
+  {
+    std::cout << input1[i] << " and " << input2[i] << std::endl;
+  }
+
+
+
+
+  free(input1);
+  free(input2);
+
+
 
   float gaussianStdDev = 1.0;
   int gaussianKernelSize = 3;
@@ -66,6 +110,7 @@ int main(int argc, char **argv)
       circlesGpu.row(0).download(Mat(circles).reshape(3, 1));
     }
 
+    /*
     // // Copy the input image from the Host to the GPU
     // cout << "Copying image to gpu." << endl;
     // imgGpu.upload(inputImage);
@@ -100,6 +145,7 @@ int main(int argc, char **argv)
     // cout << "Circles Size: " << circles.size() << endl;
 
     // cv::cuda::HoughCirclesDetector::detect(gpuInputImage, circles);
+    */
   }
   /// Running on CPU
   else
@@ -126,7 +172,7 @@ int main(int argc, char **argv)
   Mat outputImage = Mat(inputImage.rows, inputImage.cols, CV_8UC3, Scalar(0, 0, 0));
   for (size_t i = 0; i < circles.size(); i++)
   {
-    RNG rng(12345);//random number
+    RNG rng(12345); // random number
 
     int b = rng.uniform(0, 255);
     int g = rng.uniform(0, 255);
@@ -135,6 +181,8 @@ int main(int argc, char **argv)
     Vec3i cir = circles[i];
     circle(outputImage, Point(cir[0], cir[1]), cir[2], Scalar(b, g, r), 2, LINE_AA);
   }
+
+  /*
   // // Draw the circles on the image.
   // for (size_t i = 0; i < circles.size(); i++)
   // {
@@ -145,6 +193,7 @@ int main(int argc, char **argv)
   //   int radius = c[2];
   //   circle(outputImage, center, radius, Scalar(0, 0, 255), 1, LINE_AA);
   // }
+  */
 
   cout << "Circles Found: " << circles.size() << endl;
 
@@ -153,6 +202,8 @@ int main(int argc, char **argv)
 
   return 0;
 }
+
+/*
 // #include <iostream>
 // #include <opencv2/opencv.hpp>
 // #include <opencv2/core/cuda.hpp>
@@ -234,3 +285,4 @@ int main(int argc, char **argv)
 
 //     return 0;
 // }
+*/
