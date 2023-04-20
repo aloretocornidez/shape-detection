@@ -50,13 +50,15 @@ void addKernelWrapper(int numberOfElements, int *input1, int *input2)
     std::cout << "Printing Input data passed to kernel setup input1 and input2" << std::endl;
     for (int i = 0; i < numberOfElements; i++)
     {
-        std::cout << input1[i] << " and " << input2[i] << std::endl;
+        std::cout << "Copied Memory: " << input1[i] << " and " << input2[i] << std::endl;
     }
 
+    // Initializing pointers to the gpu memory
     int *gpuInput1;
     int *gpuInput2;
 
     /* allocate memory on device, check for failure */
+    std::cout << "Begin: cudaMalloc, allocating memory on the gpu" << std::endl;
     if (cudaMalloc((void **)&gpuInput1, numberOfElements * sizeof(int)) != cudaSuccess)
     {
         std::cout << "malloc error for gpuInput1" << std::endl;
@@ -65,8 +67,12 @@ void addKernelWrapper(int numberOfElements, int *input1, int *input2)
     {
         std::cout << "malloc error for gpuInput2" << std::endl;
     }
+    std::cout << "Complete: cudaMalloc, allocating memory on the gpu" << std::endl;
+
+
 
     /* copy data to device, check for failure, free device if needed */
+    std::cout << "Begin: Copying from host to the device" << std::endl;
     if (cudaMemcpy(gpuInput1, input1, numberOfElements * sizeof(int), cudaMemcpyHostToDevice) != cudaSuccess)
     {
         cudaFree(gpuInput1);
@@ -79,6 +85,8 @@ void addKernelWrapper(int numberOfElements, int *input1, int *input2)
         cudaFree(gpuInput2);
         std::cout << "data transfer error from host to device on input2" << std::endl;
     }
+    std::cout << "Complete: Copying from host to the device" << std::endl;
+
 
     std::cout << "Printing Memory copied to gpu input 1 and 2" << std::endl;
     for (int i = 0; i < numberOfElements; i++)
