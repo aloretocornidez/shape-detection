@@ -1,11 +1,48 @@
 #include<stdlib.h>
 #include<time.h>
 #include<stdio.h>
+#include <cuda_runtime.h>
+#define CUDA_CHECK(ans)                                                   \
+  { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line,
+                      bool abort = true) {
+  if (code != cudaSuccess) {
+    fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code),
+            file, line);
+    if (abort)
+      exit(code);
+  }
+}
 
-void serialConvolution(char input[], char mask[], char output[], int w, int h, int maskWidth);
+void serialConvolution(char input[], char mask[], char output[], int rows, int cols, int maskWidth);
 
-__global__ void naiveConvolution(char input[], char mask[], char output[], int w, int h, int maskWidth);
+//NAIVE 2D CONVOLUTION
+__global__ void naiveConvolution(char input[], char mask[], char output[], int rows, int cols, int maskWidth){
+    int row = threadIdx.y + blockIdx.y * blockDim.y;
+    int col = threadIdx.x + blockIdx.x * blockDim.x;
+    int pixVal = 0;
 
+    if(row < rows && col < cols){
+        int startCol = col - maskWidth / 2;
+        int startRow = row - maskWidth / 2;
+
+        for(int j = 0; j < maskWidth; j++){
+            for(int k = 0; k < maskWidth; k++){
+                int curRow = startRow + j;
+                int curCol = startCol + k;
+
+                if(curRow > -1 && curRow < rows && curCol > -1 && curCol < cols){
+                    pixVal += input[curRow * cols + curCol] * mask[j * maskWidth + k];
+                }
+            }
+        }
+    }
+
+    output[row * cols + col] = pixVal;
+    
+}
+
+//MAIN FUNCTION
 int main(void){
     srand(time(NULL)); //Set up random values
     cudaEvent_t start, stop;
@@ -72,6 +109,85 @@ int main(void){
     
     float milliseconds = 0;
     cudaEventElapsedTime(&milliseconds, start, stop);
-    printf("Elapsed time for serial: %f", milliseconds);
+    printf("Elapsed time for serial: %f\n", milliseconds);
 
+    //Now we will do a naive implementation on CUDA
+    char* hostInput;
+    char* hostMask;
+    char* hostOutput;
+    char* deviceInput;
+    char* deviceMask;
+    char* deviceOutput;
+    int rows = 720;
+    int cols = 1280;
+    int maskVal = 5;
+    cudaEvent_t startNaive, stopNaive;
+    cudaEventCreate(&startNaive);
+    cudaEventCreate(&stopNaive);
+
+    //Allocate Memory on host side
+    hostInput = (char*)malloc(rows * cols * sizeof(char));
+    hostMask = (char*)malloc(maskVal * maskVal * sizeof(char));
+    hostOutput = (char*)malloc(rows * cols * sizeof(char));
+
+    //Populare arrays on the host side
+    for(int i = 0; i < rows; i++){
+        for(int j = 0; j < cols; j++){
+            hostInput[i * rows + j] = inputImage[i][j];
+        }
+    }
+    for(int i = 0; i < maskVal; i++){
+        for(int j = 0; j < maskVal; j++){
+            hostInput[i * rows + j] = mask5x5[i][j];
+        }
+    }
+
+    //Allocate GPU memory here
+    CUDA_CHECK(
+        cudaMalloc((void **)&deviceInput, rows * cols * sizeof(char)));
+    CUDA_CHECK(
+        cudaMalloc((void **)&deviceMask, maskVal * maskVal * sizeof(char)));
+    CUDA_CHECK(
+        cudaMalloc((void **)&deviceOutput, rows * cols * sizeof(char)));
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    //Populate arrays on device side
+    CUDA_CHECK(cudaMemcpy(deviceInput, hostInput,
+                            rows * cols * sizeof(char),
+                            cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(deviceMask, hostMask,
+                            maskVal * maskVal * sizeof(char),
+                            cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    //Call the naive kernel
+    cudaEventRecord(startNaive);
+    int blockSize = 32;
+    dim3 blockDim(blockSize,blockSize), gridDim( 1 + (cols - 1) / blockSize,
+                                             1 + (rows - 1) / blockSize);
+    naiveConvolution<<<gridDim, blockDim>>>
+        (deviceInput, deviceMask, deviceOutput, rows, cols, maskVal);
+    cudaEventRecord(stopNaive);
+    cudaEventSynchronize(stopNaive);
+    //CUDA_CHECK(cudaGetLastError());
+    //CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaMemcpy(hostOutput, deviceOutput,
+                            rows * cols * sizeof(char),
+                            cudaMemcpyDeviceToHost));
+    
+    milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, startNaive, stopNaive);
+    printf("Elapsed time for naive: %f\n", milliseconds);
+
+
+    //Memory Freeing
+    //CUDA
+    cudaFree(deviceInput);
+    cudaFree(deviceMask);
+    cudaFree(deviceOutput);
+
+    //CPU
+    free(hostInput);
+    free(hostMask);
+    free(hostOutput);
 }
