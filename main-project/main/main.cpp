@@ -12,18 +12,16 @@ using namespace cv;
 using std::cout;
 using std::endl;
 
-int main(int argc, char **argv)
+void testAddingKernel()
 {
 
   int *input1;
   int *input2;
 
-  int size = 5;
+  int size = 1024;
 
   input1 = (int *)malloc(size * sizeof(int));
   input2 = (int *)malloc(size * sizeof(int));
-  
-
 
   for (int i = 0; i < size; i++)
   {
@@ -31,31 +29,16 @@ int main(int argc, char **argv)
     input2[i] = i;
   }
 
-
-  // Print elements before add
-  std::cout << "Printing elements before adding." <<std::endl;
-  for(int i = 0; i < size; i++)
-  {
-    std::cout << input1[i] << " and " << input2[i] << std::endl;
-  }
-
   // Call the GPU execution kernel.
-  addKernelWrapper(size, input1, input2);
-
-  // Print elements after add
-  std::cout << "Printing elements after adding." <<std::endl;
-  for(int i = 0; i < size; i++)
-  {
-    std::cout << input1[i] << " and " << input2[i] << std::endl;
-  }
-
-
-
+  cudaAddKernel(size, input1, input2);
 
   free(input1);
   free(input2);
+}
 
-
+int main(int argc, char **argv)
+{
+  testAddingKernel();
 
   float gaussianStdDev = 1.0;
   int gaussianKernelSize = 3;

@@ -2,7 +2,7 @@
 #include <cuda_runtime.h>
 #include <iostream>
 
-__global__ void houghTransform(char input[], char mask[], char output[], int rows, int cols, int maskWidth)
+__global__ void hough_transform_kernel_naive(char input[], char mask[], char output[], int rows, int cols, int maskWidth)
 {
     int row = threadIdx.y + blockIdx.y * blockDim.y;
     int col = threadIdx.x + blockIdx.x * blockDim.x;
@@ -31,7 +31,7 @@ __global__ void houghTransform(char input[], char mask[], char output[], int row
     output[row * cols + col] = pixVal;
 }
 
-__global__ void addKernel(int size, int *input1, int *input2)
+__global__ void add_kernel_basic(int size, int *input1, int *input2)
 {
 
     int thread = threadIdx.x + blockIdx.x * blockDim.x;
@@ -42,74 +42,58 @@ __global__ void addKernel(int size, int *input1, int *input2)
     }
 }
 
-void addKernelWrapper(int numberOfElements, int *input1, int *input2)
+void cudaAddKernel(int array_size, int *array_1, int *array_2)
 {
 
     std::cout << "Running Kernel Wrapper" << std::endl;
 
-    std::cout << "Printing Input data passed to kernel setup input1 and input2" << std::endl;
-    for (int i = 0; i < numberOfElements; i++)
-    {
-        std::cout << "Copied Memory: " << input1[i] << " and " << input2[i] << std::endl;
-    }
-
     // Initializing pointers to the gpu memory
-    int *gpuInput1;
-    int *gpuInput2;
+    int *gpu_array_1;
+    int *gput_array_2;
 
-    /* allocate memory on device, check for failure */
-    std::cout << "Begin: cudaMalloc, allocating memory on the gpu" << std::endl;
-    if (cudaMalloc((void **)&gpuInput1, numberOfElements * sizeof(int)) != cudaSuccess)
+    // allocate memory on device, check for failure
+    if (cudaMalloc((void **)&gpu_array_1, array_size * sizeof(int)) != cudaSuccess)
     {
         std::cout << "malloc error for gpuInput1" << std::endl;
     }
-    if (cudaMalloc((void **)&gpuInput2, numberOfElements * sizeof(int)) != cudaSuccess)
+    if (cudaMalloc((void **)&gput_array_2, array_size * sizeof(int)) != cudaSuccess)
     {
         std::cout << "malloc error for gpuInput2" << std::endl;
     }
-    std::cout << "Complete: cudaMalloc, allocating memory on the gpu" << std::endl;
 
+    // copy data to device, check for failure, free device if needed
 
+    cudaError_t err; // Use this whenever calling cudaMalloc and cudaMemcpy.
 
-    /* copy data to device, check for failure, free device if needed */
-    std::cout << "Begin: Copying from host to the device" << std::endl;
-    if (cudaMemcpy(gpuInput1, input1, numberOfElements * sizeof(int), cudaMemcpyHostToDevice) != cudaSuccess)
+    err = cudaMemcpy(gpu_array_1, array_1, array_size * sizeof(int), cudaMemcpyHostToDevice);
+    if (err != cudaSuccess)
     {
-        cudaFree(gpuInput1);
-        cudaFree(gpuInput2);
-        std::cout << "data transfer error from host to device on input1" << std::endl;
+        printf("%s in %s at line %d\n", cudaGetErrorString(err), __FILE__, __LINE__);
+        exit(EXIT_FAILURE);
     }
-    if (cudaMemcpy(gpuInput2, input2, numberOfElements * sizeof(int), cudaMemcpyHostToDevice) != cudaSuccess)
+    err = cudaMemcpy(gput_array_2, array_2, array_size * sizeof(int), cudaMemcpyHostToDevice);
+    if (err != cudaSuccess)
     {
-        cudaFree(gpuInput1);
-        cudaFree(gpuInput2);
-        std::cout << "data transfer error from host to device on input2" << std::endl;
-    }
-    std::cout << "Complete: Copying from host to the device" << std::endl;
-
-
-    std::cout << "Printing Memory copied to gpu input 1 and 2" << std::endl;
-    for (int i = 0; i < numberOfElements; i++)
-    {
-        std::cout << gpuInput1[i] << " and " << gpuInput2[i] << std::endl;
+        printf("%s in %s at line %d\n", cudaGetErrorString(err), __FILE__, __LINE__);
+        exit(EXIT_FAILURE);
     }
 
-    dim3 mygrid(ceil(numberOfElements / 256.0));
+    dim3 mygrid(ceil(array_size / 256.0));
     dim3 myblock(256);
 
-    addKernel<<<mygrid, myblock>>>(numberOfElements, input1, input2);
+    add_kernel_basic<<<mygrid, myblock>>>(array_size, gpu_array_1, gput_array_2);
 
-    /* copy data to host, check for failure, free device if needed */
-    if (cudaMemcpy(input1, gpuInput1, numberOfElements * sizeof(int), cudaMemcpyDeviceToHost) != cudaSuccess)
+    // copy data to host, check for failure, free device if needed
+    if (cudaMemcpy(array_1, gpu_array_1, array_size * sizeof(int), cudaMemcpyDeviceToHost) != cudaSuccess)
     {
-        cudaFree(gpuInput1);
-        cudaFree(gpuInput2);
+        cudaFree(gpu_array_1);
+        cudaFree(gput_array_2);
         printf("data transfer error from device to host on input1\n");
     }
-    if (cudaMemcpy(input2, gpuInput2, numberOfElements * sizeof(int), cudaMemcpyDeviceToHost) != cudaSuccess)
+    if (cudaMemcpy(array_2, gput_array_2, array_size * sizeof(int), cudaMemcpyDeviceToHost) != cudaSuccess)
     {
-        cudaFree(gpuInput1);
-        cudaFree(gpuInput2);
+        cudaFree(gpu_array_1);
+        cudaFree(gput_array_2);
         printf("data transfer error from device to host on input2\n");
     }
 
