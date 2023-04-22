@@ -44,11 +44,11 @@ void cpuKernelHoughTransform(cv::Mat &srcImage, cv::InputArray &srcCircles, int 
         std::cerr << "Minimum radius must be 1 or greater." << std::endl;
         exit(-1);
     }
-    if(minimumRadius == 0)
+    if (minimumRadius == 0)
     {
         minimumRadius = 5;
     }
-    if(maximumRadius == 0)
+    if (maximumRadius == 0)
     {
         maximumRadius = min(srcImage.rows, srcImage.cols) / 2;
     }
@@ -60,30 +60,17 @@ void cpuKernelHoughTransform(cv::Mat &srcImage, cv::InputArray &srcCircles, int 
 
     /* For each possible value of a, find each b that satisfies the equation (i - a)^2 + (j-b)^2 = r^2 */
     // Scan each pixel
-    for (int row = 0; row < srcImage.rows; row++)
+    for (int radius = minimumRadius; radius < maximumRadius; radius++)
+    // Check every radius within the bounds.
     {
-        for (int column = 0; column < srcImage.cols; column++)
-        {   
-            // Check every radius within the bounds.
-            for(int r = minimumRadius; r < maximumRadius; r++)
+        for (int row = radius; row < srcImage.rows - radius; row++)
+        {
+            for (int column = radius; column < srcImage.cols - radius; column++)
             {
-
+            
             }
-
         }
     }
-
-
-
-
-
-
-
-
-
-
-
-
 
     // Search for a local Maxima in the accumulator space.
 
