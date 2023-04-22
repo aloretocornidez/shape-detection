@@ -1,7 +1,9 @@
 #include<stdlib.h>
 #include<time.h>
 #include<stdio.h>
-#include <cuda_runtime.h>
+//#include <cuda_runtime.h>
+#include <iostream>
+#include <assert.h>
 #define CUDA_CHECK(ans)                                                   \
   { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line,
@@ -57,19 +59,19 @@ int main(void){
     //Initialize input image 
     for(int i = 0; i < 720; i++){
         for(int j = 0; j < 1280; j++){
-            inputImage[i][j] = rand();
+            inputImage[i][j] = rand() % 10;
         }
     }
 
     //Initialize 3x3 mask and 5x5 mask
     for(int i = 0; i < 3; i++){
         for(int j = 0; j < 3; j++){
-            mask3x3[i][j] = rand();
+            mask3x3[i][j] = rand() % 10;
         }
     }
     for(int i = 0; i < 5; i++){
         for(int j = 0; j < 5; j++){
-            mask5x5[i][j] = rand();
+            mask5x5[i][j] = rand() % 10;
         }
     }
 
@@ -77,31 +79,32 @@ int main(void){
     //Will be using a 5x5 for now
     int kCols = 5;
     int kRows = 5;
-    int kCenterX = kCols / 2;
-    int kCenterY = kRows / 2;
+    int kColDisplace = kCols / 2;
+    int kRowDisplace = kRows / 2;
+
+	std::cout << "Hello!" << std::endl;
 
     cudaEventRecord(start);
     for(int i=0; i < 720; ++i)              // rows
     {
         for(int j=0; j < 1280; ++j)          // columns
         {
-            for(int m=0; m < kRows; ++m)     // kernel rows
-            {
-                int mm = kRows - 1 - m;      // row index of flipped kernel
+            int startRow = i - kRowDisplace;
+            int startCol = j - kColDisplace;
+            char sum = 0;
+            
+            for(int m=0; m < kRows; ++m) { //Kernel rows
+                for(int n=0; n < kCols; ++n) { //Kernel Cols
+                    //int nn = kCols - 1 - n;  // column index of flipped kernel
+                    int currRow = startRow + m;
+                    int currCol = startCol + n;
 
-                for(int n=0; n < kCols; ++n) // kernel columns
-                {
-                    int nn = kCols - 1 - n;  // column index of flipped kernel
-
-                    // index of input signal, used for checking boundary
-                    int ii = i + (kCenterY - mm);
-                    int jj = j + (kCenterX - nn);
-
-                    // ignore input samples which are out of bound
-                    if( ii >= 0 && ii < 720 && jj >= 0 && jj < 1280 )
-                        outputImage[i][j] += inputImage[ii][jj] * mask5x5[mm][nn];
+                    if(currRow > -1 && currRow < 720 && currCol > -1 && currCol < 1280){
+                        sum += inputImage[currRow][currCol] * mask5x5[m][n];
+                    }
                 }
             }
+            outputImage[i][j] = sum;
         }
     }
     cudaEventRecord(stop);
@@ -109,7 +112,7 @@ int main(void){
     
     float milliseconds = 0;
     cudaEventElapsedTime(&milliseconds, start, stop);
-    printf("Elapsed time for serial: %f\n", milliseconds);
+    std::cout << "Elapsed time for serial: " << milliseconds << std::endl;
 
     //Now we will do a naive implementation on CUDA
     char* hostInput;
@@ -169,15 +172,24 @@ int main(void){
         (deviceInput, deviceMask, deviceOutput, rows, cols, maskVal);
     cudaEventRecord(stopNaive);
     cudaEventSynchronize(stopNaive);
-    //CUDA_CHECK(cudaGetLastError());
-    //CUDA_CHECK(cudaDeviceSynchronize());
+    milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, startNaive, stopNaive);
+    std::cout << "Elapsed time for naive: " << milliseconds <<std::endl;
+	cudaDeviceSynchronize();
+
     CUDA_CHECK(cudaMemcpy(hostOutput, deviceOutput,
                             rows * cols * sizeof(char),
                             cudaMemcpyDeviceToHost));
     
-    milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, startNaive, stopNaive);
-    printf("Elapsed time for naive: %f\n", milliseconds);
+    //Check wether output is correct
+    for(int i = 0; i < rows; i++){
+        for(int j = 0; j < cols; j++){
+            assert(hostOutput[i * rows + j] == outputImage[i][j]);
+        }
+    }
+    
+
+    //
 
 
     //Memory Freeing
