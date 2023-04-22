@@ -62,6 +62,7 @@ int main(int argc, char **argv)
 
   imshow("test", inputImage);
   waitKey();
+  
 
 
 
