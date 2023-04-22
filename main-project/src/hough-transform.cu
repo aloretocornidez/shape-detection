@@ -23,7 +23,7 @@ __global__ void set_image_to_value(uchar *inputImage, int height, int width)
 }
 #endif
 
-__global__ void hough_transform_kernel_naive(uchar *inputImage, int height, int width, cv::InputArray circles)
+__global__ void hough_transform_kernel_naive(uchar *srcImage, int height, int width, cv::InputArray circles)
 {
     int row = threadIdx.y + blockIdx.y * blockDim.y;
     int column = threadIdx.x + blockIdx.x * blockDim.x;
@@ -31,60 +31,77 @@ __global__ void hough_transform_kernel_naive(uchar *inputImage, int height, int 
     if (row < height && column < width)
     {
 
-        inputImage[row * width + column] = 128;
+        srcImage[row * width + column] = 128;
     }
 }
 
-void cpuKernelHoughTransform(cv::Mat &inputImage, cv::InputArray &circles, int minimumRadius, int maxRadius)
+void cpuKernelHoughTransform(cv::Mat &srcImage, cv::InputArray &srcCircles, int minimumRadius, int maximumRadius, int threshold)
 {
     std::cout << "Executing the Hough Transform on the CPU." << std::endl;
 
-    if (minimumRadius > 1)
+    if (minimumRadius < 0)
     {
         std::cerr << "Minimum radius must be 1 or greater." << std::endl;
         exit(-1);
     }
+    if(minimumRadius == 0)
+    {
+        minimumRadius = 5;
+    }
+    if(maximumRadius == 0)
+    {
+        maximumRadius = min(srcImage.rows, srcImage.cols) / 2;
+    }
 
     /* Begin Algoritm */
 
-    // Create Accumulator space (array to hold values of the x-coordinate, y-coordinate, and radius of the circle)
-    
+    /* Create Accumulator space (array to hold values of the x-coordinate, y-coordinate, and radius of the circle) */
+    std::vector<cv::Vec3f> circles;
 
-    // For each possible value of a, find each b that satisfies the equation (i - a)^2 + (j-b)^2 = r^2
+    /* For each possible value of a, find each b that satisfies the equation (i - a)^2 + (j-b)^2 = r^2 */
+    // Scan each pixel
+    for (int row = 0; row < srcImage.rows; row++)
+    {
+        for (int column = 0; column < srcImage.cols; column++)
+        {   
+            // Check every radius within the bounds.
+            for(int r = minimumRadius; r < maximumRadius; r++)
+            {
+
+            }
+
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
 
 
     // Search for a local Maxima in the accumulator space.
-    
 
     // Append the local maxima found to the circles array.
-
-
-
-
-
-
-
-
-    for (int row = 0; row < inputImage.rows; row++)
-    {
-        for (int column = 0; column < inputImage.cols; column++)
-        {
-        }
-    }
 }
 
-void houghTransform(cv::Mat &grayscaleInputImage, cv::InputArray &circles, int method)
+void houghTransform(cv::Mat &srcImage, cv::InputArray &circles, int method)
 {
 
     // Run Hough Transform on the CPU and return.
     if (method == 0)
     {
-        cpuKernelHoughTransform(grayscaleInputImage, circles, 1, 1000);
+        cpuKernelHoughTransform(srcImage, circles, 0, 0, 40);
         return;
     }
 
-    int imageRows = grayscaleInputImage.rows;
-    int imageColumns = grayscaleInputImage.cols;
+    int imageRows = srcImage.rows;
+    int imageColumns = srcImage.cols;
 
     // Initialize pointer for the GPU memory
     uchar *gpuImageBuffer;
@@ -98,7 +115,7 @@ void houghTransform(cv::Mat &grayscaleInputImage, cv::InputArray &circles, int m
     }
 
     // Copy Data from host to Device
-    err = cudaMemcpy(gpuImageBuffer, grayscaleInputImage.ptr<uchar>(0, 0), imageRows * imageColumns * sizeof(uchar), cudaMemcpyHostToDevice);
+    err = cudaMemcpy(gpuImageBuffer, srcImage.ptr<uchar>(0, 0), imageRows * imageColumns * sizeof(uchar), cudaMemcpyHostToDevice);
     if (err != cudaSuccess)
     {
         printf("%s in %s at line %d\n", cudaGetErrorString(err), __FILE__, __LINE__);
@@ -125,7 +142,7 @@ void houghTransform(cv::Mat &grayscaleInputImage, cv::InputArray &circles, int m
     }
 
     // Copy data from device to host
-    err = cudaMemcpy(grayscaleInputImage.ptr<uchar>(0, 0), gpuImageBuffer, imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost);
+    err = cudaMemcpy(srcImage.ptr<uchar>(0, 0), gpuImageBuffer, imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost);
     if (err != cudaSuccess)
     {
         cudaFree(gpuImageBuffer);

@@ -9,7 +9,7 @@
 // Perform the Hough Transform, the final argument determines which kernel is used.
 void houghTransform(cv::Mat &grayscaleInputImage, cv::InputArray &circles, int method);
 // Perform the Hough Transform on the CPU.
-void cpuKernelHoughTransform(cv::Mat &inputImage, cv::InputArray &circles, int minimumRadius, int maxRadius);
+void cpuKernelHoughTransform(cv::Mat &srcImage, cv::InputArray &srcCircles, int minimumRadius, int maximumRadius, int threshold);
 
 /*
  * Array Add Functions
