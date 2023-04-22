@@ -1,10 +1,10 @@
 #ifndef __HOUGH_TRANSFORM__
-#define __HOUGHTRANSFORM__
+#define __HOUGH_TRANSFORM__
 
 #include <opencv2/core.hpp>
 
 // Perform the Hough Transform
-void cudaHoughTransform(cv::Mat grayscaleInputImage, cv::InputArray circles);
+void cudaHoughTransform(cv::Mat& grayscaleInputImage, cv::InputArray circles);
 
 
 // Perform an element-wise addition of two arrays. Output stored in array_1

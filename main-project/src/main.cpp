@@ -46,21 +46,16 @@ int main(int argc, char **argv)
   // Vector containing the coordinate values of the cirles found.
   std::vector<Vec3f> circles;
 
-  imshow("Before Manipulation | Main", inputImage);
+  cv::imshow("Before Manipulation | Main", inputImage);
   cv::waitKey();
 
   cudaHoughTransform(inputImage, circles);
 
-  imshow("After Manipulation | Main", inputImage);
-  waitKey();
+  cv::imshow("After Manipulation | Main", inputImage);
+  cv::waitKey();
+
+
   
-
-
-
-
-
-
-
 #if 0
 
 
