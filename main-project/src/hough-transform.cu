@@ -2,72 +2,74 @@
 #include <iostream>
 #include <opencv2/core.hpp>
 
-__global__ void hough_transform_kernel_naive(int rows, int columns, int maskWidth, uchar *input, uchar *mask, uchar *output)
+__global__ void hough_transform_kernel_naive(uchar *inputImage, int height, int width)
 {
     int row = threadIdx.y + blockIdx.y * blockDim.y;
-    int col = threadIdx.x + blockIdx.x * blockDim.x;
+    int column = threadIdx.x + blockIdx.x * blockDim.x;
 
-    int pixVal = 0;
-
-    if (row < rows && col < columns)
+    if (row < height && column < width)
     {
-        int startCol = col - maskWidth / 2;
-        int startRow = row - maskWidth / 2;
 
-        for (int j = 0; j < maskWidth; j++)
-        {
-            for (int k = 0; k < maskWidth; k++)
-            {
-                int curRow = startRow + j;
-                int curCol = startCol + k;
-
-                if (curRow > -1 && curRow < rows && curCol > -1 && curCol < columns)
-                {
-                    pixVal += input[curRow * columns + curCol] * mask[j * maskWidth + k];
-                }
-            }
-        }
+        inputImage[row * width + column] = 0;
     }
-
-    output[row * columns + col] = pixVal;
 }
 
 void cudaHoughTransform(cv::Mat grayscaleInputImage, cv::InputArray circles)
 {
 
-    std::cout << "Test" << std::endl;
-    std::cout << (unsigned long long)&grayscaleInputImage.at<uchar>(0, 0) << std::endl;
+    std::cout << "Running CUDA hough transform." << std::endl;
 
-    uchar *test = &grayscaleInputImage.at<uchar>(0, 0);
+    int imageHeight = grayscaleInputImage.rows;
+    int imageWidth = grayscaleInputImage.cols;
 
-    int rows = grayscaleInputImage.rows;
-    int columns = grayscaleInputImage.cols;
+    // Initializing pointers for the GPU memory
+    uchar *gpuImageBuffer;
 
-    for (int i = 0; i < (rows *columns); i++)
+    // Error detection
+    cudaError_t err;
+
+    // Allocate GPU Memory
+    err = cudaMalloc((void **)&gpuImageBuffer, imageHeight * imageWidth * sizeof(uchar));
+    if (err != cudaSuccess)
     {
-
-        int row = i / columns;
-        int column = i - row * rows;
-
-        test[i] = 0;
-
+        std::cout << "malloc error for gpuInput1" << std::endl;
     }
 
+    // Copy Data from host to Device
+    err = cudaMemcpy(gpuImageBuffer, &grayscaleInputImage.at<uchar>(0, 0), imageHeight * imageWidth * sizeof(uchar), cudaMemcpyHostToDevice);
+    if (err != cudaSuccess)
+    {
+        printf("%s in %s at line %d\n", cudaGetErrorString(err), __FILE__, __LINE__);
+        exit(EXIT_FAILURE);
+    }
+    std::cout << "Cuda Memory Allocated.\n" << std::endl;
 
 
 
+    // Execute kernel
+    dim3 mygrid(ceil(imageHeight * imageHeight / 256.0));
+    dim3 myblock(256);
+
+    std::cout << "Executing kernel." << std::endl;
+    hough_transform_kernel_naive<<<mygrid, myblock>>>(gpuImageBuffer, imageHeight, imageWidth);
+    std::cout << "Kernel execution complete.\n" << std::endl;
+
+    // Copy data from device to host
+    // copy data to host, check for failure, free device if needed
+    std::cout << "Copying from device to host." << std::endl;
+    if (cudaMemcpy(&grayscaleInputImage.at<uchar>(0, 0), gpuImageBuffer, imageHeight * imageWidth * sizeof(uchar), cudaMemcpyDeviceToHost) != cudaSuccess)
+    {
+        cudaFree(gpuImageBuffer);
+        printf("%s in %s at line %d\n", cudaGetErrorString(err), __FILE__, __LINE__);
+        exit(EXIT_FAILURE);
+    }
+    std::cout << "Memory Copied." << std::endl;
+
+    // Free allocated memory
+    cudaFree(gpuImageBuffer);
 
 
-
-
-
-
-
-
-
-
-
-
+    std::cout << "Finished CUDA hough transform.\n" << std::endl;
 }
 
 __global__ void add_kernel_basic(int size, int *input1, int *input2)
@@ -117,6 +119,7 @@ void cudaAddKernel(int array_size, int *array_1, int *array_2)
         exit(EXIT_FAILURE);
     }
 
+    // Execute kernel.
     dim3 mygrid(ceil(array_size / 256.0));
     dim3 myblock(256);
 
@@ -135,6 +138,9 @@ void cudaAddKernel(int array_size, int *array_1, int *array_2)
         cudaFree(gput_array_2);
         printf("data transfer error from device to host on input2\n");
     }
+
+    cudaFree(gpu_array_1);
+    cudaFree(gput_array_2);
 
     std::cout << "Finished Kernel Wrapper execution" << std::endl;
 }
