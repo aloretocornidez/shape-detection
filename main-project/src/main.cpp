@@ -51,11 +51,11 @@ int main(int argc, char **argv)
 
   houghTransform(inputImage, circles, 0);
 
+  std::cout << circles << std::endl;
+
   // cv::imshow("After Manipulation | Main", inputImage);
   // cv::waitKey();
 
-
-  
 #if 0
 
 
