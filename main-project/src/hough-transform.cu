@@ -1,14 +1,15 @@
 #include "hough-transform.hpp"
-#include <cuda_runtime.h>
 #include <iostream>
+#include <opencv2/core.hpp>
 
-__global__ void hough_transform_kernel_naive(char input[], char mask[], char output[], int rows, int cols, int maskWidth)
+__global__ void hough_transform_kernel_naive(int rows, int columns, int maskWidth, uchar *input, uchar *mask, uchar *output)
 {
     int row = threadIdx.y + blockIdx.y * blockDim.y;
     int col = threadIdx.x + blockIdx.x * blockDim.x;
+
     int pixVal = 0;
 
-    if (row < rows && col < cols)
+    if (row < rows && col < columns)
     {
         int startCol = col - maskWidth / 2;
         int startRow = row - maskWidth / 2;
@@ -20,15 +21,53 @@ __global__ void hough_transform_kernel_naive(char input[], char mask[], char out
                 int curRow = startRow + j;
                 int curCol = startCol + k;
 
-                if (curRow > -1 && curRow < rows && curCol > -1 && curCol < cols)
+                if (curRow > -1 && curRow < rows && curCol > -1 && curCol < columns)
                 {
-                    pixVal += input[curRow * cols + curCol] * mask[j * maskWidth + k];
+                    pixVal += input[curRow * columns + curCol] * mask[j * maskWidth + k];
                 }
             }
         }
     }
 
-    output[row * cols + col] = pixVal;
+    output[row * columns + col] = pixVal;
+}
+
+void cudaHoughTransform(cv::Mat grayscaleInputImage, cv::InputArray circles)
+{
+
+    std::cout << "Test" << std::endl;
+    std::cout << (unsigned long long)&grayscaleInputImage.at<uchar>(0, 0) << std::endl;
+
+    uchar *test = &grayscaleInputImage.at<uchar>(0, 0);
+
+    int rows = grayscaleInputImage.rows;
+    int columns = grayscaleInputImage.cols;
+
+    for (int i = 0; i < (rows *columns); i++)
+    {
+
+        int row = i / columns;
+        int column = i - row * rows;
+
+        test[i] = 0;
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 __global__ void add_kernel_basic(int size, int *input1, int *input2)

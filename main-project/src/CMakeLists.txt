@@ -25,9 +25,8 @@ set(SOURCES
 main.cpp
 hough-transform.cu
 hough-transform.hpp
-lodepng.h
-lodepng.cpp
-
+interface.hpp
+interface.cpp
 )
 
 

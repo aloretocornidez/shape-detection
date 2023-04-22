@@ -1,54 +1,31 @@
-#include <cuda_runtime.h>
-#include <cuda.h>
-#include "lodepng.h"
-#include "hough-transform.hpp"
-
+// Opencv header includes
 #include <opencv2/core/cuda.hpp>
 #include <opencv2/cudaimgproc.hpp>
 #include <opencv2/cudafilters.hpp>
 #include <opencv2/opencv.hpp>
 
+// Cuda header includes
+#include <cuda_runtime.h>
+#include <cuda.h>
+
+// Additional Includes
+#include "hough-transform.hpp"
+#include "interface.hpp"
+#include <iostream>
+
+// Namespace function declarations
 using namespace cv;
-using std::cout;
-using std::endl;
-
-void testAddingKernel()
-{
-
-  int *input1;
-  int *input2;
-
-  int size = 1024;
-
-  input1 = (int *)malloc(size * sizeof(int));
-  input2 = (int *)malloc(size * sizeof(int));
-
-  for (int i = 0; i < size; i++)
-  {
-    input1[i] = i;
-    input2[i] = i;
-  }
-
-  // Call the GPU execution kernel.
-  cudaAddKernel(size, input1, input2);
-
-  free(input1);
-  free(input2);
-}
+using namespace std;
 
 int main(int argc, char **argv)
 {
-  testAddingKernel();
-
-  float gaussianStdDev = 1.0;
-  int gaussianKernelSize = 3;
 
   // Usage for the program
   if (argc < 2)
   {
 
-    cout << "Usage: {programName} path/to/image (0: CPU | 1: GPU)" << endl;
-    return -1;
+    cerr << "Usage: {programName} path/to/image" << endl; // (0: CPU | 1: GPU)" << endl;
+    exit(-1);
   }
 
   // Read the image file
@@ -61,10 +38,44 @@ int main(int argc, char **argv)
     cout << "Could not open or find the image with path:" << argv[1] << endl;
     return -1;
   }
+  else
+  {
+    cout << "Image loaded: " << argv[1] << endl;
+  }
 
   // Vector containing the coordinate values of the cirles found.
   std::vector<Vec3f> circles;
 
+  int temp = 0;
+  for(int i = 0; i < inputImage.rows; i++)
+  {
+    for (int j = 0; j < inputImage.cols; j++)
+    {
+      inputImage.at<uchar>(i, j) = temp++ % 256;
+    }
+  }
+
+  imshow("test", inputImage);
+  waitKey();
+
+  cudaHoughTransform(inputImage, circles);
+
+  imshow("test", inputImage);
+  waitKey();
+
+
+
+
+
+
+
+#if 0
+
+
+  float gaussianStdDev = 1.0;
+  int gaussianKernelSize = 3;
+
+  
   // Checks if the program is being run on the CPU or GPU.
   bool gpuRunning = atoi(argv[2]);
   if (gpuRunning)
@@ -180,92 +191,10 @@ int main(int argc, char **argv)
 
   cout << "Circles Found: " << circles.size() << endl;
 
-  imshow("detected circles", outputImage);
-  waitKey();
+  // imshow("detected circles", outputImage);
+  // waitKey();
+
+#endif
 
   return 0;
 }
-
-/*
-// #include <iostream>
-// #include <opencv2/opencv.hpp>
-// #include <opencv2/core/cuda.hpp>
-// #include <opencv2/cudaimgproc.hpp>
-// #include <opencv2/cudaarithm.hpp>
-// #include <opencv2/cudafilters.hpp>
-// #include <opencv2/cudabgsegm.hpp>
-// #include <opencv2/cudacodec.hpp>
-// #include <opencv2/cudaobjdetect.hpp>
-// #include <opencv2/cudaoptflow.hpp>
-// #include <opencv2/cudastereo.hpp>
-// #include <opencv2/cudawarping.hpp>
-// #include <opencv2/cudafeatures2d.hpp>
-
-// using namespace std;
-// using namespace cv;
-
-// VideoCapture cap(0);
-
-// RNG rng(12345);//random number
-
-// int main()
-// {
-
-//     //cuda::printCudaDeviceInfo(0);
-
-//     Mat img;
-//     cuda::GpuMat imgGpu, gray, circlesGpu;
-
-//     vector<Vec3f> circles;
-
-//     while(cap.isOpened()){
-
-//         auto start = getTickCount();
-
-//         cap.read(img);
-
-//         imgGpu.upload(img);
-
-//         cuda::cvtColor(imgGpu, gray, COLOR_BGR2GRAY);
-
-//         // Image Filtering
-//         auto gaussianFilter = cuda::createGaussianFilter(CV_8UC1, CV_8UC1, {3,3}, 1);
-//         gaussianFilter->apply(gray, gray);
-
-//         // Circle Detector
-//         auto circleDetection = cuda::createHoughCirclesDetector(1,100, 120, 50, 1, 50, 5);
-//         circleDetection->detect(gray, circlesGpu);
-
-//         circles.resize(circlesGpu.size().width);
-//         if(!circles.empty()){
-//             circlesGpu.row(0).download(Mat(circles).reshape(3,1));
-//         }
-
-//         // auto end = getTickCount();
-//         // auto totalTime = (end - start) / getTickFrequency();
-//         // auto fps = 1 / totalTime;
-
-//         for( size_t i = 0; i < circles.size(); i++ )
-//         {
-//             int b = rng.uniform(0,255);
-//             int g = rng.uniform(0,255);
-//             int r = rng.uniform(0,255);
-
-//             Vec3i cir = circles[i];
-//             circle(img, Point(cir[0], cir[1]), cir[2], Scalar(b,g,r), 2, LINE_AA);
-//         }
-
-//         // putText(img, "FPS: " + to_string(int(fps)), Point(50, 50), FONT_HERSHEY_DUPLEX, 1, Scalar(255, 255, 255), 2, false);
-//         imshow("Image", img);
-
-//         if(waitKey(1) == 'q'){
-//             break;
-//         }
-//     }
-
-//     cap.release();
-//     destroyAllWindows();
-
-//     return 0;
-// }
-*/
