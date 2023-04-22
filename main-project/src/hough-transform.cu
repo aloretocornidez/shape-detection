@@ -15,17 +15,13 @@ __global__ void hough_transform_kernel_naive(uchar *inputImage, int height, int 
 
         // printf("%d\n", inputImage[row * width + column]);
     }
-
 }
 
 void cudaHoughTransform(cv::Mat &grayscaleInputImage, cv::InputArray circles)
 {
 
-    std::cout << "Running CUDA hough transform." << std::endl;
-
     int imageRows = grayscaleInputImage.rows;
     int imageColumns = grayscaleInputImage.cols;
-
 
     // Initializing pointers for the GPU memory
     uchar *gpuImageBuffer;
@@ -41,8 +37,6 @@ void cudaHoughTransform(cv::Mat &grayscaleInputImage, cv::InputArray circles)
         exit(EXIT_FAILURE);
     }
 
-
-
     // Copy Data from host to Device
     err = cudaMemcpy(gpuImageBuffer, grayscaleInputImage.ptr<uchar>(0, 0), imageRows * imageColumns * sizeof(uchar), cudaMemcpyHostToDevice);
     if (err != cudaSuccess)
@@ -57,12 +51,9 @@ void cudaHoughTransform(cv::Mat &grayscaleInputImage, cv::InputArray circles)
     dim3 mygrid(ceil(imageColumns / (threads * 1.0)), ceil(imageRows / (threads * 1.0)));
     dim3 myblock(threads, threads);
 
-    std::cout << "Executing kernel." << std::endl;
     hough_transform_kernel_naive<<<mygrid, myblock>>>(gpuImageBuffer, imageRows, imageColumns);
-    std::cout << "Kernel execution complete." << std::endl;
 
     // Copy data from device to host
-    std::cout << "Copying from device to host." << std::endl;
     err = cudaMemcpy(grayscaleInputImage.ptr<uchar>(0, 0), gpuImageBuffer, imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost);
     if (err != cudaSuccess)
     {
@@ -70,25 +61,9 @@ void cudaHoughTransform(cv::Mat &grayscaleInputImage, cv::InputArray circles)
         printf("%s in %s at line %d\n", cudaGetErrorString(err), __FILE__, __LINE__);
         exit(EXIT_FAILURE);
     }
-    std::cout << "Memory Copied." << std::endl;
-
-    cudaDeviceSynchronize();
-
-    // for (int row = 0; row < grayscaleInputImage.rows; row++)
-    // {
-    //     for (int column = 0; column < grayscaleInputImage.cols; column++)
-    //     {
-    //         std::cout << (int)grayscaleInputImage.at<uchar>(row, column) << std::endl;
-    //         // grayscaleInputImage.at<uchar>(row, column) = 128; // column % 256;
-    //     }
-    // }
 
     // Free allocated memory
     cudaFree(gpuImageBuffer);
-
-
-
-    std::cout << "Finished CUDA hough transform." << std::endl;
 }
 
 __global__ void add_kernel_basic(int size, int *input1, int *input2)
