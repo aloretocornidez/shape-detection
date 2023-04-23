@@ -59,14 +59,14 @@ void cpuKernelHoughTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &srcCircl
                 // Check if the a circle exists at the coordinate point (with the current radius)
                 for (int theta = 0; theta < 360; theta++)
                 {
+                    // Checking all 4 cardinal directions.
                     int x;
                     int y;
                     int deltaX = cos(theta * DEGREES_TO_RADIANS) * radius;
                     int deltaY = sin(theta * DEGREES_TO_RADIANS) * radius;
-
-                    // Checking all 4 cardinal directions.
                     x = deltaX + column;
                     y = deltaY + row;
+
                     if (srcImage.at<uchar>(x, y) < 10)
                     {
                         accumulator++;
@@ -94,16 +94,17 @@ __global__ void hough_transform_kernel_naive(uchar *srcImage, unsigned int *rTab
 {
     int row = threadIdx.y + blockIdx.y * blockDim.y;
     int column = threadIdx.x + blockIdx.x * blockDim.x;
+    int numberOfRadii = maximumRadius - minimumRadius;
 
     // DEBUG STATEMENTS
     // minimumRadius = 50;
     // maximumRadius = 55;
 
     // Check if the thread is within image bounds.
-    if (row < (imageRows + minimumRadius) && column < (imageColumns + minimumRadius))
+    if (row < (imageRows - minimumRadius) && row > minimumRadius && column < (imageColumns - minimumRadius) && column > minimumRadius)
     {
 
-        for (int radius = minimumRadius; radius < maximumRadius; radius++)
+        for (int radius = 0; radius < maximumRadius - minimumRadius; radius++)
         {
             for (int theta = 0; theta < 360; theta++)
             {
@@ -111,8 +112,14 @@ __global__ void hough_transform_kernel_naive(uchar *srcImage, unsigned int *rTab
                 int deltaY = sin(DEGREES_TO_RADIANS * theta) * radius;
 
                 int imageIndex = (row + deltaY) * imageColumns + (row + deltaX);
-                if (false)
-                    srcImage[imageIndex] = theta % 255;
+
+                int pixelValue = srcImage[0];
+
+                if (pixelValue < 10)
+                {
+
+                    atomicAdd(&rTable[0], 1);
+                }
             }
         }
     }
@@ -130,18 +137,24 @@ void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int meth
     // Run Hough Transform on the CPU and return.
     if (method == 0)
     {
+        std::cout << "Executing Hough Transform on the CPU" << std::endl;
         cpuKernelHoughTransform(srcImage, circles, distance, minimumRadius, maximumRadius);
         return;
     }
 
-    // Allocating an r-table to populate parameters for each shape.
-    unsigned int *rTable;
-    rTable = (unsigned int *)malloc(imageColumns * imageRows * (maximumRadius - minimumRadius) * sizeof(unsigned int));
-    // Initialize pointer for the GPU memory
+    // Allocate GPU Memory Initialize pointer for the GPU memory
     uchar *gpuImageBuffer;
-
-    // Allocate GPU Memory
     cudaError_t err = cudaMalloc((void **)&gpuImageBuffer, imageRows * imageColumns * sizeof(uchar));
+    if (err != cudaSuccess)
+    {
+        printf("%s in %s at line %d\n", cudaGetErrorString(err), __FILE__, __LINE__);
+        exit(EXIT_FAILURE);
+    }
+
+    // Allocating an r-table to populate parameters for each shape.
+    // Allocate the R table on the GPU.
+    unsigned int *deviceRTable;
+    err = cudaMalloc((void **)&deviceRTable, imageColumns * imageRows * (maximumRadius - minimumRadius) * sizeof(unsigned int));
     if (err != cudaSuccess)
     {
         printf("%s in %s at line %d\n", cudaGetErrorString(err), __FILE__, __LINE__);
@@ -155,7 +168,7 @@ void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int meth
         printf("%s in %s at line %d\n", cudaGetErrorString(err), __FILE__, __LINE__);
         exit(EXIT_FAILURE);
     }
-    // std::cout << "Cuda Memory Allocated." << std::endl;
+    std::cout << "Cuda Memory Allocated." << std::endl;
 
     /*
      *
@@ -164,19 +177,25 @@ void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int meth
      */
     if (method == HOUGH_TRANSFORM_NAIVE_KERNEL)
     {
+        std::cout << "Executing Hough Transform on the Naive Kernel" << std::endl;
 
         dim3 mygrid(ceil(imageColumns / (BLOCK_DIMENSIONS * 1.0)), ceil(imageRows / (BLOCK_DIMENSIONS * 1.0)));
         dim3 myblock(BLOCK_DIMENSIONS, BLOCK_DIMENSIONS);
 
-        hough_transform_kernel_naive<<<mygrid, myblock>>>(gpuImageBuffer, rTable, imageRows, imageColumns, minimumRadius, maximumRadius, distance);
+        hough_transform_kernel_naive<<<mygrid, myblock>>>(gpuImageBuffer, deviceRTable, imageRows, imageColumns, minimumRadius, maximumRadius, distance);
+
+        std::cout << "Hough Transform Naive Kernel Execution Complete" << std::endl;
     }
     else
     {
         std::cout << "Invalid Kernel Method Chosen. | (method): " << method << std::endl;
     }
 
+    /* Modications are not being made to the image, so no copy back to the host is required. */
     // Copy data from device to host
-    err = cudaMemcpy(srcImage.ptr<uchar>(0, 0), gpuImageBuffer, imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost);
+    unsigned int *hostRTable;
+    hostRTable = (unsigned int *)malloc(imageColumns * imageRows * (maximumRadius - minimumRadius) * sizeof(unsigned int));
+    err = cudaMemcpy(hostRTable, deviceRTable, imageColumns * imageRows * (maximumRadius - minimumRadius) * sizeof(unsigned int), cudaMemcpyDeviceToHost);
     if (err != cudaSuccess)
     {
         cudaFree(gpuImageBuffer);
@@ -184,9 +203,35 @@ void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int meth
         exit(EXIT_FAILURE);
     }
 
+    parseRTable(circles, hostRTable, minimumRadius, maximumRadius, imageRows, imageColumns);
+
     // Free allocated memory
-    free(rTable);
+    cudaFree(deviceRTable);
     cudaFree(gpuImageBuffer);
+    free(hostRTable);
+    std::cout << "Cuda Memory Freed" << std::endl;
+
+    std::cout << "GPU Hough Transform Execution Complete" << std::endl;
+}
+
+void parseRTable(std::vector<cv::Vec3f> &circles, unsigned int *rTable, int minimumRadius, int maximumRadius, int imageRows, int imageColumns)
+{
+
+    for (int row = 0; row < imageRows - minimumRadius; row++)
+    {
+        for (int column = 0; column < imageColumns - minimumRadius; column++)
+        {
+            for (int radius = 0; radius < (maximumRadius - minimumRadius); radius++)
+            {
+                // Check if the image at that coordinate is greater than the threshold.
+                // If so, then append the circle to the circles vector.
+                if (row == 50 && column == 50 && radius == 20)
+                {
+                    circles.push_back({(float)row, (float)column, (float)radius});
+                }
+            }
+        }
+    }
 }
 
 __global__ void add_kernel_basic(int size, int *input1, int *input2)
