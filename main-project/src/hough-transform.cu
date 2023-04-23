@@ -38,14 +38,14 @@ __global__ void hough_transform_kernel_naive(uchar *srcImage, int height, int wi
 
 void cpuKernelHoughTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &srcCircles)
 {
+    std::cout << "Executing the Hough Transform on the CPU." << std::endl;
+    
     /* Parameters Until we make them modular */
     int distance = 1;
-    int minimumRadius = 18;
+    int minimumRadius = 18; // 20 is the min for the test image.
     int maximumRadius = 100; // 100 is max radius for the test image.
+    // Note, the threshold for the number of pixels is dynamically set within the loop.
 
-    // int threshold = 200;
-
-    std::cout << "Executing the Hough Transform on the CPU." << std::endl;
 
     if (minimumRadius < 0)
     {
@@ -62,19 +62,10 @@ void cpuKernelHoughTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &srcCircl
     }
 
     /* Begin Algoritm */
-
-    /* Create Accumulator space (array to hold values of the x-coordinate, y-coordinate, and radius of the circle) */
-    // std::vector<cv::Vec3f> circles;
-
-    /* For each possible value of a, find each b that satisfies the equation (i - a)^2 + (j-b)^2 = r^2 */
-    // Scan each pixel
-    // Check every radius within the bounds.
-
-    int foundCircles = 0;
     for (int radius = minimumRadius; radius < maximumRadius; radius++)
     {
         int threshold = ((log(radius * 2 / 3)) * 80) / log(3);
-        std::cout << "Testing Radius: " << radius << " | With Threshold: " << threshold << std::endl;
+        // std::cout << "Testing Radius: " << radius << " | With Threshold: " << threshold << std::endl;
 
         for (int row = radius; row < srcImage.rows - radius; row += distance)
         {
@@ -99,32 +90,19 @@ void cpuKernelHoughTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &srcCircl
                     }
                 }
 
+                // Adding the coordinate if the contained enough edge pixels.
                 if (accumulator > threshold)
                 {
-                    std::cout << "Accumulator was greater than threshold. :(" << accumulator << ", " << threshold << ")" << std::endl;
-                    printf("Adding a set of circle parameters: [%d, %d, %d]\n\n", row, column, radius);
-
+                    // std::cout << "Accumulator was greater than threshold. :(" << accumulator << ", " << threshold << ")" << std::endl;
+                    // printf("Adding a set of circle parameters: [%d, %d, %d]\n\n", row, column, radius);
+                    
                     srcCircles.push_back({(float)row, (float)column, (float)radius});
-                    foundCircles++;
-
-                    // Circles must be found within the certain distance so this break makes the loop move on to the next coordinate.
-                    // break;
                 }
             }
         }
     }
-    // Search for a local Maxima in the accumulator space.
 
-    // Append the local maxima found to the circles array.
-    // float pv[circles.size() * 3];
-    // for (unsigned int i = 0; i < circles.size(); i++)
-    // {
-    //     pv[i] = circles.at(i)[0];
-    //     pv[i + 1] = circles.at(i)[1];
-    //     pv[i + 2] = circles.at(i)[2];
-    // }
-
-    // Save Calculated circles to the input matrix.
+    std::cout << "Execution of the Hough Transform on the CPU comleted." << std::endl;
 }
 
 void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int method)

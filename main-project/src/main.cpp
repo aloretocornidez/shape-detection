@@ -55,14 +55,14 @@ int main(int argc, char **argv)
 
   /*
    *
-   * Testing circles output from personal implementation.
+   * Drawing circles on the image
    *
    */
   if (!circles.empty())
   {
     std::cout << "Circles Found: " << circles.size() << std::endl;
 
-    for (int i = 0; i < circles.size(); i++)
+    for (int i = 0; i < (int)circles.size(); i++)
     {
 
       Vec3i cir = circles[i];
