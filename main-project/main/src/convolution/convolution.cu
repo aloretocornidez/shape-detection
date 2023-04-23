@@ -2,8 +2,8 @@
 #include<time.h>
 #include<stdio.h>
 //#include <cuda_runtime.h>
-#include <iostream>
-#include <assert.h>
+#include<iostream>
+#include<assert.h>
 // #define CUDA_CHECK(ans)                                                   \
 //   { gpuAssert((ans), __FILE__, __LINE__); }
 // inline void gpuAssert(cudaError_t code, const char *file, int line,
@@ -17,8 +17,6 @@
 // }
 
 cudaError_t err;
-
-void serialConvolution(unsigned char input[], unsigned char mask[], unsigned char output[], int rows, int cols, int maskWidth);
 
 //NAIVE 2D CONVOLUTION
 __global__ void naiveConvolution(unsigned char input[], unsigned char mask[], unsigned char output[], int rows, int cols, int maskWidth){
@@ -82,10 +80,10 @@ __global__ void tiledConvolution(unsigned char input[], unsigned char output[], 
     int row = threadIdx.y + blockIdx.y * blockDim.y;
     int col = threadIdx.x + blockIdx.x * blockDim.x;
     //Assuming we know the blocm width, to use 2D notation
-    __shared__ unsigned char sharedM[convolution1BlockDim][convolution1BlockDim];
+    //__shared__ unsigned char sharedM[convolution1BlockDim][convolution1BlockDim];
     unsigned char pixVal = 0;
 
-    int outputSizeSquare = 28; //We will produce 28 pixel values for each 32 threads
+    //int outputSizeSquare = 28; //We will produce 28 pixel values for each 32 threads
 
     //For loop
     for(int outer = 0; outer < cols; )
@@ -123,7 +121,6 @@ int main(void){
     //We will compute a convolution image on a 720p made up image
     unsigned char inputImage[720][1280];
     unsigned char outputImage[720][1280];
-    unsigned char mask3x3[3][3];
     unsigned char mask5x5[5][5];
 
     //Initialize input image 
@@ -133,12 +130,6 @@ int main(void){
         }
     }
 
-    //Initialize 3x3 mask and 5x5 mask
-    for(int i = 0; i < 3; i++){
-        for(int j = 0; j < 3; j++){
-            mask3x3[i][j] = abs(rand() % 10);
-        }
-    }
     for(int i = 0; i < 5; i++){
         for(int j = 0; j < 5; j++){
             mask5x5[i][j] = abs(rand() % 10);
@@ -280,6 +271,12 @@ int main(void){
     cudaFree(deviceInput);
     cudaFree(deviceMask);
     cudaFree(deviceOutput);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    cudaEventDestroy(startNaive);
+    cudaEventDestroy(stopNaive);
+    cudaEventDestroy(startConstant);
+    cudaEventDestroy(stopConstant);
     
 
     //CPU
