@@ -43,6 +43,8 @@ int main(int argc, char **argv)
     cout << "Image loaded: " << argv[1] << endl;
   }
 
+  cv::threshold(inputImage, inputImage, 100, 255, THRESH_BINARY);
+
   // Vector containing the coordinate values of the circles found.
   std::vector<Vec3f> circles;
 
@@ -56,45 +58,27 @@ int main(int argc, char **argv)
    * Testing circles output from personal implementation.
    *
    */
+  if (!circles.empty())
   {
-    Mat inputImageBuffer;
-    // cvtColor(inputImage, gray, COLOR_BGR2GRAY);
-    inputImageBuffer = inputImage.clone();
-    imshow("Input Image Buffer", inputImageBuffer);
-    waitKey();
-    GaussianBlur(inputImageBuffer, inputImageBuffer, Size(3, 3), 0.8);
-    // Running a CPU hough transform.
-    HoughCircles(inputImageBuffer, circles, HOUGH_GRADIENT, 1, 10, 300, 100, 0, 0);
+    std::cout << "Circles Found: " << circles.size() << std::endl;
 
-    if (!circles.empty())
+    for (int i = 0; i < circles.size(); i++)
     {
-      std::cout << "Circles Found: " << circles.size() << std::endl;
 
-      for (int i = 0; i < 1; i++)
-      {
+      Vec3i cir = circles[i];
 
-        Vec3i cir = circles[i];
-
-        RNG rng(random()); // random number
-
-        int b = rng.uniform(0, 255);
-        int g = rng.uniform(0, 255);
-        int r = rng.uniform(0, 255);
-
-        std::cout << r << " " << g << " " << b << std::endl;
-
-        circle(inputImageBuffer, Point(cir[0], cir[1]), 1, Scalar(b, g, r), 2, LINE_AA);
-        circle(inputImageBuffer, Point(cir[0], cir[1]), cir[2], Scalar(b, g, r), 2, LINE_AA);
-      }
-
-      imshow("Test Circles found", inputImageBuffer);
-      waitKey();
-    }
-    else
-    {
-      std::cout << "No circles found" << std::endl;
+      circle(inputImage, Point(cir[0], cir[1]), 1, Scalar(0, 0, 0), 2, LINE_AA);
+      circle(inputImage, Point(cir[0], cir[1]), cir[2], Scalar(0, 0, 0), 2, LINE_AA);
     }
   }
+  else
+  {
+    std::cout << "No circles found" << std::endl;
+  }
+
+  imshow("Test Circles found", inputImage);
+  waitKey();
+
   // cv::imshow("After Manipulation | Main", inputImage);
   // cv::waitKey();
 
