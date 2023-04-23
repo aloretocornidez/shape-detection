@@ -1,7 +1,7 @@
 #include<stdlib.h>
 #include<time.h>
 #include<stdio.h>
-#include <cuda_runtime.h>
+//#include <cuda_runtime.h>
 #include <iostream>
 #include <assert.h>
 // #define CUDA_CHECK(ans)                                                   \
@@ -82,9 +82,10 @@ __global__ void tiledConvolution(unsigned char input[], unsigned char output[], 
     int row = threadIdx.y + blockIdx.y * blockDim.y;
     int col = threadIdx.x + blockIdx.x * blockDim.x;
     //Assuming we know the blocm width, to use 2D notation
-    __shared__ sharedM[convolution1BlockDim][convolution1BlockDim];
+    __shared__ unsigned char sharedM[convolution1BlockDim][convolution1BlockDim];
+    unsigned char pixVal = 0;
 
-    outputSizeSquare = 28; //We will produce 28 pixel values for each 32 threads
+    int outputSizeSquare = 28; //We will produce 28 pixel values for each 32 threads
 
     //For loop
     for(int outer = 0; outer < cols; )
@@ -114,6 +115,7 @@ __global__ void tiledConvolution(unsigned char input[], unsigned char output[], 
 
 //MAIN FUNCTION
 int main(void){
+    std::cout << "Hello!" << std::endl;
     srand(time(NULL)); //Set up random values
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -150,7 +152,6 @@ int main(void){
     int kColDisplace = kCols / 2;
     int kRowDisplace = kRows / 2;
 
-	std::cout << "Hello!" << std::endl;
 
     cudaEventRecord(start);
     for(int i=0; i < 720; ++i)              // rows
