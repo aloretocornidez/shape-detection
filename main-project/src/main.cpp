@@ -51,13 +51,14 @@ int main(int argc, char **argv)
   // cv::imshow("Before Manipulation | Main", inputImage);
   // cv::waitKey();
 
-  houghTransform(inputImage, circles, 0);
+  houghTransform(inputImage, circles, 1);
 
   /*
    *
    * Drawing circles on the image
    *
    */
+  // Were circles found?
   if (!circles.empty())
   {
     std::cout << "Circles Found: " << circles.size() << std::endl;
