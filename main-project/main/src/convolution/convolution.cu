@@ -395,25 +395,24 @@ int main(void){
 
 
 //--------------------SHARED MEMORY LESS DIVERGENCE--------------------
+//--------------------THIS PROTOTYPE DID NOT WORK---------------------
     //CUDA LESS DIVERGENCE
     //cudaEvent_t startShared, stopShared;
     //cudaEventCreate(&startShared);
     //cudaEventCreate(&stopShared);
 
-    cudaEventRecord(startShared);
+    //cudaEventRecord(startShared);
     //int gridTileSize = 28;
     //Readjust grid
     //dim3 sharedGridDim( 1 + (cols - 1) / gridTileSize,
     //            1 + (rows - 1) / gridTileSize);
-    sharedConvolutionDivergence<<<sharedGridDim, blockDim>>>
-        (deviceInput, deviceOutput, rows, cols, maskVal);
-    cudaEventRecord(stopShared);
-    cudaEventSynchronize(stopShared);
-    milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, startShared, stopShared);
-    std::cout << "Elapsed time for divergence: " << milliseconds <<std::endl;
-
-
+    // sharedConvolutionDivergence<<<sharedGridDim, blockDim>>>
+    //     (deviceInput, deviceOutput, rows, cols, maskVal);
+    // cudaEventRecord(stopShared);
+    // cudaEventSynchronize(stopShared);
+    // milliseconds = 0;
+    // cudaEventElapsedTime(&milliseconds, startShared, stopShared);
+    // std::cout << "Elapsed time for divergence: " << milliseconds <<std::endl;
 
     //Memory Freeing
     //CUDA
