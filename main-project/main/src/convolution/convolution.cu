@@ -111,7 +111,6 @@ __global__ void sharedConvolution(unsigned char input[], unsigned char output[],
         }
     }
     
-
     // if(row < rows && col < cols){
     //     int startCol = col - maskWidth / 2;
     //     int startRow = row - maskWidth / 2;
@@ -169,7 +168,9 @@ __global__ void sharedConvolutionDivergence(unsigned char input[], unsigned char
             }
             //int colOutputIndex = blockIdx.x * outputSizeSquare + threadIdx.x;
             //int rowOutputIndex = blockIdx.y * outputSizeSquare + threadIdx.y;
-            output[newIndex1D] = pixVal;
+            int colOutputIndex = blockIdx.x * outputSizeSquare + newIndex1Dx;
+            int rowOutputIndex = blockIdx.y * outputSizeSquare + newIndex1Dy;
+            output[rowOutputIndex * cols + colOutputIndex] = pixVal;
         }
     }
     
@@ -383,6 +384,7 @@ int main(void){
     milliseconds = 0;
     cudaEventElapsedTime(&milliseconds, startMemoryReturn, stopMemoryReturn);
     std::cout << "Elapsed time for image to return to CPU: " << milliseconds <<std::endl;
+    cudaDeviceSynchronize();
 
     //Check wether output is correct
     for(int i = 0; i < rows; i++){
@@ -394,22 +396,22 @@ int main(void){
 
 //--------------------SHARED MEMORY LESS DIVERGENCE--------------------
     //CUDA LESS DIVERGENCE
-    cudaEvent_t startDivergence, stopDivergence;
-    cudaEventCreate(&startDivergence);
-    cudaEventCreate(&stopDivergence);
+    //cudaEvent_t startShared, stopShared;
+    //cudaEventCreate(&startShared);
+    //cudaEventCreate(&stopShared);
 
-    cudaEventRecord(startDivergence);
+    cudaEventRecord(startShared);
     //int gridTileSize = 28;
     //Readjust grid
     //dim3 sharedGridDim( 1 + (cols - 1) / gridTileSize,
     //            1 + (rows - 1) / gridTileSize);
-    sharedConvolution<<<sharedGridDim, blockDim>>>
+    sharedConvolutionDivergence<<<sharedGridDim, blockDim>>>
         (deviceInput, deviceOutput, rows, cols, maskVal);
-    cudaEventRecord(stopDivergence);
-    cudaEventSynchronize(stopDivergence);
+    cudaEventRecord(stopShared);
+    cudaEventSynchronize(stopShared);
     milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, startDivergence, stopDivergence);
-    std::cout << "Elapsed time for no divergence: " << milliseconds <<std::endl;
+    cudaEventElapsedTime(&milliseconds, startShared, stopShared);
+    std::cout << "Elapsed time for divergence: " << milliseconds <<std::endl;
 
 
 
@@ -428,6 +430,8 @@ int main(void){
     cudaEventDestroy(stopConstant);
     cudaEventDestroy(startShared);
     cudaEventDestroy(stopShared);
+    //cudaEventDestroy(startDivergence);
+    //cudaEventDestroy(stopDivergence);
     
 
     //CPU
