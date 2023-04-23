@@ -43,19 +43,45 @@ int main(int argc, char **argv)
     cout << "Image loaded: " << argv[1] << endl;
   }
 
-  // Vector containing the coordinate values of the cirles found.
+  cv::threshold(inputImage, inputImage, 100, 255, THRESH_BINARY);
+
+  // Vector containing the coordinate values of the circles found.
   std::vector<Vec3f> circles;
 
-  cv::imshow("Before Manipulation | Main", inputImage);
-  cv::waitKey();
+  // cv::imshow("Before Manipulation | Main", inputImage);
+  // cv::waitKey();
 
-  cudaHoughTransform(inputImage, circles);
+  houghTransform(inputImage, circles, 0);
 
-  cv::imshow("After Manipulation | Main", inputImage);
-  cv::waitKey();
+  /*
+   *
+   * Testing circles output from personal implementation.
+   *
+   */
+  if (!circles.empty())
+  {
+    std::cout << "Circles Found: " << circles.size() << std::endl;
 
+    for (int i = 0; i < circles.size(); i++)
+    {
 
-  
+      Vec3i cir = circles[i];
+
+      circle(inputImage, Point(cir[0], cir[1]), 1, Scalar(0, 0, 0), 2, LINE_AA);
+      circle(inputImage, Point(cir[0], cir[1]), cir[2], Scalar(0, 0, 0), 2, LINE_AA);
+    }
+  }
+  else
+  {
+    std::cout << "No circles found" << std::endl;
+  }
+
+  imshow("Test Circles found", inputImage);
+  waitKey();
+
+  // cv::imshow("After Manipulation | Main", inputImage);
+  // cv::waitKey();
+
 #if 0
 
 

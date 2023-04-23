@@ -2,35 +2,149 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 
-__global__ void hough_transform_kernel_naive(uchar *inputImage, int height, int width)
+// Thread Block and Memory Allocation Parameters.
+#define BLOCK_DIMENSIONS 32
+
+// Hough Tranform Kernel Definitions
+#define HOUGH_TRANSFORM_NAIVE_KERNEL 1
+#define DEGREES_TO_RADIANS 0.0120830485
+
+// Sample Kernel for memory access of an image.
+#if 0
+__global__ void set_image_to_value(uchar *inputImage, int height, int width)
 {
     int row = threadIdx.y + blockIdx.y * blockDim.y;
     int column = threadIdx.x + blockIdx.x * blockDim.x;
 
     if (row < height && column < width)
     {
-        // printf("%d\n", inputImage[row * width + column]);
 
         inputImage[row * width + column] = 128;
+    }
+}
+#endif
 
-        // printf("%d\n", inputImage[row * width + column]);
+__global__ void hough_transform_kernel_naive(uchar *srcImage, int height, int width, cv::InputArray circles)
+{
+    int row = threadIdx.y + blockIdx.y * blockDim.y;
+    int column = threadIdx.x + blockIdx.x * blockDim.x;
+
+    if (row < height && column < width)
+    {
+
+        srcImage[row * width + column] = 128;
     }
 }
 
-void cudaHoughTransform(cv::Mat &grayscaleInputImage, cv::InputArray circles)
+void cpuKernelHoughTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &srcCircles)
+{
+    /* Parameters Until we make them modular */
+    int distance = 1;
+    int minimumRadius = 18;
+    int maximumRadius = 100; // 100 is max radius for the test image.
+
+    // int threshold = 200;
+
+    std::cout << "Executing the Hough Transform on the CPU." << std::endl;
+
+    if (minimumRadius < 0)
+    {
+        std::cerr << "Minimum radius must be 1 or greater." << std::endl;
+        exit(-1);
+    }
+    if (minimumRadius == 0)
+    {
+        minimumRadius = 5;
+    }
+    if (maximumRadius == 0)
+    {
+        maximumRadius = min(srcImage.rows - 1, srcImage.cols - 1) / 2;
+    }
+
+    /* Begin Algoritm */
+
+    /* Create Accumulator space (array to hold values of the x-coordinate, y-coordinate, and radius of the circle) */
+    // std::vector<cv::Vec3f> circles;
+
+    /* For each possible value of a, find each b that satisfies the equation (i - a)^2 + (j-b)^2 = r^2 */
+    // Scan each pixel
+    // Check every radius within the bounds.
+
+    int foundCircles = 0;
+    for (int radius = minimumRadius; radius < maximumRadius; radius++)
+    {
+        int threshold = ((log(radius * 2 / 3)) * 80) / log(3);
+        std::cout << "Testing Radius: " << radius << " | With Threshold: " << threshold << std::endl;
+
+        for (int row = radius; row < srcImage.rows - radius; row += distance)
+        {
+            for (int column = radius; column < srcImage.cols - radius; column += distance)
+            {
+                // std::cout << "Testing (row, column): (" << row << ", " << column << ")" << std::endl;
+                int accumulator = 0;
+                // Check if the a circle exists at the coordinate point (with the current radius)
+                for (int theta = 0; theta < 360; theta++)
+                {
+                    int x;
+                    int y;
+                    int deltaX = cos(theta * DEGREES_TO_RADIANS) * radius;
+                    int deltaY = sin(theta * DEGREES_TO_RADIANS) * radius;
+
+                    // Checking all 4 cardinal directions.
+                    x = deltaX + column;
+                    y = deltaY + row;
+                    if (srcImage.at<uchar>(x, y) < 10)
+                    {
+                        accumulator++;
+                    }
+                }
+
+                if (accumulator > threshold)
+                {
+                    std::cout << "Accumulator was greater than threshold. :(" << accumulator << ", " << threshold << ")" << std::endl;
+                    printf("Adding a set of circle parameters: [%d, %d, %d]\n\n", row, column, radius);
+
+                    srcCircles.push_back({(float)row, (float)column, (float)radius});
+                    foundCircles++;
+
+                    // Circles must be found within the certain distance so this break makes the loop move on to the next coordinate.
+                    // break;
+                }
+            }
+        }
+    }
+    // Search for a local Maxima in the accumulator space.
+
+    // Append the local maxima found to the circles array.
+    // float pv[circles.size() * 3];
+    // for (unsigned int i = 0; i < circles.size(); i++)
+    // {
+    //     pv[i] = circles.at(i)[0];
+    //     pv[i + 1] = circles.at(i)[1];
+    //     pv[i + 2] = circles.at(i)[2];
+    // }
+
+    // Save Calculated circles to the input matrix.
+}
+
+void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int method)
 {
 
-    int imageRows = grayscaleInputImage.rows;
-    int imageColumns = grayscaleInputImage.cols;
+    // Run Hough Transform on the CPU and return.
+    if (method == 0)
+    {
+        cpuKernelHoughTransform(srcImage, circles);
+        return;
+    }
 
-    // Initializing pointers for the GPU memory
+    int imageRows = srcImage.rows;
+    int imageColumns = srcImage.cols;
+
+    // Initialize pointer for the GPU memory
     uchar *gpuImageBuffer;
 
-    // Error detection
-    cudaError_t err;
-
     // Allocate GPU Memory
-    err = cudaMalloc((void **)&gpuImageBuffer, imageRows * imageColumns * sizeof(uchar));
+    cudaError_t err = cudaMalloc((void **)&gpuImageBuffer, imageRows * imageColumns * sizeof(uchar));
     if (err != cudaSuccess)
     {
         printf("%s in %s at line %d\n", cudaGetErrorString(err), __FILE__, __LINE__);
@@ -38,7 +152,7 @@ void cudaHoughTransform(cv::Mat &grayscaleInputImage, cv::InputArray circles)
     }
 
     // Copy Data from host to Device
-    err = cudaMemcpy(gpuImageBuffer, grayscaleInputImage.ptr<uchar>(0, 0), imageRows * imageColumns * sizeof(uchar), cudaMemcpyHostToDevice);
+    err = cudaMemcpy(gpuImageBuffer, srcImage.ptr<uchar>(0, 0), imageRows * imageColumns * sizeof(uchar), cudaMemcpyHostToDevice);
     if (err != cudaSuccess)
     {
         printf("%s in %s at line %d\n", cudaGetErrorString(err), __FILE__, __LINE__);
@@ -46,15 +160,26 @@ void cudaHoughTransform(cv::Mat &grayscaleInputImage, cv::InputArray circles)
     }
     // std::cout << "Cuda Memory Allocated." << std::endl;
 
-    // Execute kernel
-    const int threads = 32;
-    dim3 mygrid(ceil(imageColumns / (threads * 1.0)), ceil(imageRows / (threads * 1.0)));
-    dim3 myblock(threads, threads);
+    /*
+     *
+     * Execute the hough transform on the specified kernel.
+     *
+     */
+    if (method == HOUGH_TRANSFORM_NAIVE_KERNEL)
+    {
 
-    hough_transform_kernel_naive<<<mygrid, myblock>>>(gpuImageBuffer, imageRows, imageColumns);
+        dim3 mygrid(ceil(imageColumns / (BLOCK_DIMENSIONS * 1.0)), ceil(imageRows / (BLOCK_DIMENSIONS * 1.0)));
+        dim3 myblock(BLOCK_DIMENSIONS, BLOCK_DIMENSIONS);
+
+        hough_transform_kernel_naive<<<mygrid, myblock>>>(gpuImageBuffer, imageRows, imageColumns, circles);
+    }
+    else
+    {
+        std::cout << "Invalid Kernel Method Chosen. | (method): " << method << std::endl;
+    }
 
     // Copy data from device to host
-    err = cudaMemcpy(grayscaleInputImage.ptr<uchar>(0, 0), gpuImageBuffer, imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost);
+    err = cudaMemcpy(srcImage.ptr<uchar>(0, 0), gpuImageBuffer, imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost);
     if (err != cudaSuccess)
     {
         cudaFree(gpuImageBuffer);
@@ -135,6 +260,4 @@ void cudaAddKernel(int array_size, int *array_1, int *array_2)
 
     cudaFree(gpu_array_1);
     cudaFree(gput_array_2);
-
-    std::cout << "Finished Kernel Wrapper execution" << std::endl;
 }
