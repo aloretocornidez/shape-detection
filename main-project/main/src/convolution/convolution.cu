@@ -4,17 +4,19 @@
 #include <cuda_runtime.h>
 #include <iostream>
 #include <assert.h>
-#define CUDA_CHECK(ans)                                                   \
-  { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line,
-                      bool abort = true) {
-  if (code != cudaSuccess) {
-    fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code),
-            file, line);
-    if (abort)
-      exit(code);
-  }
-}
+// #define CUDA_CHECK(ans)                                                   \
+//   { gpuAssert((ans), __FILE__, __LINE__); }
+// inline void gpuAssert(cudaError_t code, const char *file, int line,
+//                       bool abort = true) {
+//   if (code != cudaSuccess) {
+//     fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code),
+//             file, line);
+//     if (abort)
+//       exit(code);
+//   }
+// }
+
+cudaError_t err;
 
 void serialConvolution(unsigned char input[], unsigned char mask[], unsigned char output[], int rows, int cols, int maskWidth);
 
@@ -41,8 +43,74 @@ __global__ void naiveConvolution(unsigned char input[], unsigned char mask[], un
     }
 
     output[row * cols + col] = pixVal;
-    
 }
+
+//CONSTANT MEMORY 2D CONVOLUTION
+//This is a sample using 5x5 constant memory. Uses the same input array as others
+#define maskDimension 5
+__constant__ unsigned char consMask[maskDimension*maskDimension];
+
+__global__ void constantConvolution(unsigned char input[], unsigned char output[], int rows, int cols, int maskWidth){
+    int row = threadIdx.y + blockIdx.y * blockDim.y;
+    int col = threadIdx.x + blockIdx.x * blockDim.x;
+    int pixVal = 0;
+
+    if(row < rows && col < cols){
+        int startCol = col - maskWidth / 2;
+        int startRow = row - maskWidth / 2;
+
+        for(int j = 0; j < maskWidth; j++){
+            for(int k = 0; k < maskWidth; k++){
+                int curRow = startRow + j;
+                int curCol = startCol + k;
+
+                if(curRow > -1 && curRow < rows && curCol > -1 && curCol < cols){
+                    pixVal += input[curRow * cols + curCol] * consMask[j * maskWidth + k];
+                }
+            }
+        }
+    }
+
+    output[row * cols + col] = pixVal;
+}
+
+//TILED 2D CONVOLUTION
+//Also uses constant memory
+//This is done assuming we know the tile width/ block dimensions
+#define convolution1BlockDim 32
+__global__ void tiledConvolution(unsigned char input[], unsigned char output[], int rows, int cols, int maskWidth){
+    int row = threadIdx.y + blockIdx.y * blockDim.y;
+    int col = threadIdx.x + blockIdx.x * blockDim.x;
+    //Assuming we know the blocm width, to use 2D notation
+    __shared__ sharedM[convolution1BlockDim][convolution1BlockDim];
+
+    outputSizeSquare = 28; //We will produce 28 pixel values for each 32 threads
+
+    //For loop
+    for(int outer = 0; outer < cols; )
+
+    //Bring in all of the data
+
+
+    if(row < rows && col < cols){
+        int startCol = col - maskWidth / 2;
+        int startRow = row - maskWidth / 2;
+
+        for(int j = 0; j < maskWidth; j++){
+            for(int k = 0; k < maskWidth; k++){
+                int curRow = startRow + j;
+                int curCol = startCol + k;
+
+                if(curRow > -1 && curRow < rows && curCol > -1 && curCol < cols){
+                    pixVal += input[curRow * cols + curCol] * consMask[j * maskWidth + k];
+                }
+            }
+        }
+    }
+
+    output[row * cols + col] = pixVal;
+}
+
 
 //MAIN FUNCTION
 int main(void){
@@ -146,22 +214,22 @@ int main(void){
     }
 
     //Allocate GPU memory here
-    CUDA_CHECK(
-        cudaMalloc((void **)&deviceInput, rows * cols * sizeof(unsigned char)));
-    CUDA_CHECK(
-        cudaMalloc((void **)&deviceMask, maskVal * maskVal * sizeof(unsigned char)));
-    CUDA_CHECK(
-        cudaMalloc((void **)&deviceOutput, rows * cols * sizeof(unsigned char)));
-    CUDA_CHECK(cudaDeviceSynchronize());
+    err = 
+        cudaMalloc((void **)&deviceInput, rows * cols * sizeof(unsigned char));
+    err = 
+        cudaMalloc((void **)&deviceMask, maskVal * maskVal * sizeof(unsigned char));
+    err= 
+        cudaMalloc((void **)&deviceOutput, rows * cols * sizeof(unsigned char));
+    cudaDeviceSynchronize();
 
     //Populate arrays on device side
-    CUDA_CHECK(cudaMemcpy(deviceInput, hostInput,
+    err = cudaMemcpy(deviceInput, hostInput,
                             rows * cols * sizeof(unsigned char),
-                            cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(deviceMask, hostMask,
+                            cudaMemcpyHostToDevice);
+    err = cudaMemcpy(deviceMask, hostMask,
                             maskVal * maskVal * sizeof(unsigned char),
-                            cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaDeviceSynchronize());
+                            cudaMemcpyHostToDevice);
+    cudaDeviceSynchronize();
 
     //Call the naive kernel
     cudaEventRecord(startNaive);
@@ -176,9 +244,9 @@ int main(void){
     cudaEventElapsedTime(&milliseconds, startNaive, stopNaive);
     std::cout << "Elapsed time for naive: " << milliseconds <<std::endl;
 
-    CUDA_CHECK(cudaMemcpy(hostOutput, deviceOutput,
+    err = cudaMemcpy(hostOutput, deviceOutput,
                             rows * cols * sizeof(unsigned char),
-                            cudaMemcpyDeviceToHost));
+                            cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
 
     //Check wether output is correct
@@ -189,7 +257,21 @@ int main(void){
     }
     
 
-    //
+    //CUDA CONSTANT MEM
+    cudaMemcpyToSymbol(consMask, hostMask, maskVal * maskVal);
+    cudaEvent_t startConstant, stopConstant;
+    cudaEventCreate(&startConstant);
+    cudaEventCreate(&stopConstant);
+
+    cudaEventRecord(startConstant);
+    constantConvolution<<<gridDim, blockDim>>>
+        (deviceInput, deviceOutput, rows, cols, maskVal);
+    cudaEventRecord(stopConstant);
+    cudaEventSynchronize(stopConstant);
+    milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, startConstant, stopConstant);
+    std::cout << "Elapsed time for constant: " << milliseconds <<std::endl;
+    
 
 
     //Memory Freeing
@@ -197,6 +279,7 @@ int main(void){
     cudaFree(deviceInput);
     cudaFree(deviceMask);
     cudaFree(deviceOutput);
+    
 
     //CPU
     free(hostInput);
