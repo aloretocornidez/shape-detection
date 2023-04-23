@@ -72,48 +72,114 @@ __global__ void constantConvolution(unsigned char input[], unsigned char output[
     output[row * cols + col] = pixVal;
 }
 
-//TILED 2D CONVOLUTION
+//SHARED 2D CONVOLUTION
 //Also uses constant memory
 //This is done assuming we know the tile width/ block dimensions
 #define convolution1BlockDim 32
-__global__ void tiledConvolution(unsigned char input[], unsigned char output[], int rows, int cols, int maskWidth){
+__global__ void sharedConvolution(unsigned char input[], unsigned char output[], int rows, int cols, int maskWidth){
     int row = threadIdx.y + blockIdx.y * blockDim.y;
     int col = threadIdx.x + blockIdx.x * blockDim.x;
     //Assuming we know the blocm width, to use 2D notation
-    //__shared__ unsigned char sharedM[convolution1BlockDim][convolution1BlockDim];
-    unsigned char pixVal = 0;
+    __shared__ unsigned char sharedM[convolution1BlockDim][convolution1BlockDim];
+    //unsigned char pixVal = 0;
 
-    //int outputSizeSquare = 28; //We will produce 28 pixel values for each 32 threads
+    int outputSizeSquare = 28; //We will produce 28 pixel values for each 32 threads (per dimension)
 
-    //For loop
-    for(int outer = 0; outer < cols; )
-
-    //Bring in all of the data
-
-
+    //Bring in the data
+    int colIndexShared = blockIdx.x * outputSizeSquare - maskWidth / 2 + threadIdx.x;
+    int rowIndexShared = blockIdx.y * outputSizeSquare - maskWidth / 2 + threadIdx.y;
+    
+    if(colIndexShared > -1 && colIndexShared < cols && rowIndexShared > -1 && rowIndexShared < rows){
+        sharedM[threadIdx.y][threadIdx.x] = input[rowIndexShared * cols + colIndexShared];
+    }
+    else {
+        sharedM[threadIdx.y][threadIdx.x] = 0;
+    }
+    __syncthreads();
+    
     if(row < rows && col < cols){
-        int startCol = col - maskWidth / 2;
-        int startRow = row - maskWidth / 2;
-
-        for(int j = 0; j < maskWidth; j++){
-            for(int k = 0; k < maskWidth; k++){
-                int curRow = startRow + j;
-                int curCol = startCol + k;
-
-                if(curRow > -1 && curRow < rows && curCol > -1 && curCol < cols){
-                    pixVal += input[curRow * cols + curCol] * consMask[j * maskWidth + k];
+        if(threadIdx.x < outputSizeSquare && threadIdx.y < outputSizeSquare){
+            unsigned char pixVal = 0;
+            for(int j = 0; j < maskWidth; j++){
+                for(int k = 0; k < maskWidth; k++){
+                    pixVal += sharedM[threadIdx.y + j][threadIdx.x + k] * consMask[j * maskWidth + k];
                 }
             }
+            int colOutputIndex = blockIdx.x * outputSizeSquare + threadIdx.x;
+            int rowOutputIndex = blockIdx.y * outputSizeSquare + threadIdx.y;
+            output[rowOutputIndex * cols + colOutputIndex] = pixVal;
         }
     }
+    
 
-    output[row * cols + col] = pixVal;
+    // if(row < rows && col < cols){
+    //     int startCol = col - maskWidth / 2;
+    //     int startRow = row - maskWidth / 2;
+
+    //     for(int j = 0; j < maskWidth; j++){
+    //         for(int k = 0; k < maskWidth; k++){
+    //             int curRow = startRow + j;
+    //             int curCol = startCol + k;
+
+    //             if(curRow > -1 && curRow < rows && curCol > -1 && curCol < cols){
+    //                 pixVal += input[curRow * cols + curCol] * consMask[j * maskWidth + k];
+    //             }
+    //         }
+    //     }
+    // }
+
+    //output[row * cols + col] = pixVal;
+}
+
+//SHARED 2D CONVOLUTION NO DIVERGENCE
+//Also uses constant memory
+//This is done assuming we know the tile width/ block dimensions
+__global__ void sharedConvolutionDivergence(unsigned char input[], unsigned char output[], int rows, int cols, int maskWidth){
+    int row = threadIdx.y + blockIdx.y * blockDim.y;
+    int col = threadIdx.x + blockIdx.x * blockDim.x;
+    //Assuming we know the blocm width, to use 2D notation
+    __shared__ unsigned char sharedM[convolution1BlockDim][convolution1BlockDim];
+    //unsigned char pixVal = 0;
+
+    int outputSizeSquare = 28; //We will produce 28 pixel values for each 32 threads (per dimension)
+
+    //Bring in the data
+    int colIndexShared = blockIdx.x * outputSizeSquare - maskWidth / 2 + threadIdx.x;
+    int rowIndexShared = blockIdx.y * outputSizeSquare - maskWidth / 2 + threadIdx.y;
+    
+    if(colIndexShared > -1 && colIndexShared < cols && rowIndexShared > -1 && rowIndexShared < rows){
+        sharedM[threadIdx.y][threadIdx.x] = input[rowIndexShared * cols + colIndexShared];
+    }
+    else {
+        sharedM[threadIdx.y][threadIdx.x] = 0;
+    }
+    __syncthreads();
+    
+    if(row < rows && col < cols){
+        int indexVal = threadIdx.x + threadIdx.y * blockDim.x;
+        if(indexVal < (blockDim.x * blockDim.y - (maskWidth - 1) * blockDim.y)){
+            unsigned char pixVal = 0;
+            int newIndex1D = ((indexVal / outputSizeSquare) * (maskWidth - 1) + indexVal);
+            int newIndex1Dy = newIndex1D / blockDim.x;
+            int newIndex1Dx = newIndex1D % blockDim.x;
+            for(int j = 0; j < maskWidth; j++){
+                for(int k = 0; k < maskWidth; k++){
+                    pixVal += sharedM[newIndex1Dy + j][newIndex1Dx + k] * consMask[j * maskWidth + k];
+                }
+            }
+            //int colOutputIndex = blockIdx.x * outputSizeSquare + threadIdx.x;
+            //int rowOutputIndex = blockIdx.y * outputSizeSquare + threadIdx.y;
+            output[newIndex1D] = pixVal;
+        }
+    }
+    
 }
 
 
 //MAIN FUNCTION
 int main(void){
-    std::cout << "Hello!" << std::endl;
+
+//--------------------SERIAL STARTUP FIRST--------------------
     srand(time(NULL)); //Set up random values
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -130,6 +196,7 @@ int main(void){
         }
     }
 
+    //Initialize input mask
     for(int i = 0; i < 5; i++){
         for(int j = 0; j < 5; j++){
             mask5x5[i][j] = abs(rand() % 10);
@@ -143,19 +210,17 @@ int main(void){
     int kColDisplace = kCols / 2;
     int kRowDisplace = kRows / 2;
 
-
     cudaEventRecord(start);
     for(int i=0; i < 720; ++i)              // rows
     {
         for(int j=0; j < 1280; ++j)          // columns
         {
-            int startRow = i - kRowDisplace;
-            int startCol = j - kColDisplace;
-            unsigned char sum = 0;
+            int startRow = i - kRowDisplace; //Starting Row
+            int startCol = j - kColDisplace; //Starting Column
+            unsigned char sum = 0; 
             
             for(int m=0; m < kRows; ++m) { //Kernel rows
                 for(int n=0; n < kCols; ++n) { //Kernel Cols
-                    //int nn = kCols - 1 - n;  // column index of flipped kernel
                     int currRow = startRow + m;
                     int currCol = startCol + n;
 
@@ -173,6 +238,8 @@ int main(void){
     float milliseconds = 0;
     cudaEventElapsedTime(&milliseconds, start, stop);
     std::cout << "Elapsed time for serial: " << milliseconds << std::endl;
+
+//--------------------CUDA NAIVE IMPLEMENTATION--------------------
 
     //Now we will do a naive implementation on CUDA
     unsigned char* hostInput;
@@ -215,9 +282,23 @@ int main(void){
     cudaDeviceSynchronize();
 
     //Populate arrays on device side
+    //Events
+    cudaEvent_t startMemoryTransfer, stopMemoryTransfer;
+    cudaEventCreate(&startMemoryTransfer);
+    cudaEventCreate(&stopMemoryTransfer);
+    cudaEventRecord(startMemoryTransfer);
+
     err = cudaMemcpy(deviceInput, hostInput,
                             rows * cols * sizeof(unsigned char),
                             cudaMemcpyHostToDevice);
+                            cudaEventRecord(stopNaive);
+    
+    cudaEventRecord(stopMemoryTransfer);
+    cudaEventSynchronize(stopMemoryTransfer);
+    milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, startMemoryTransfer, stopMemoryTransfer);
+    std::cout << "Elapsed time for image transfer: " << milliseconds <<std::endl;
+
     err = cudaMemcpy(deviceMask, hostMask,
                             maskVal * maskVal * sizeof(unsigned char),
                             cudaMemcpyHostToDevice);
@@ -226,10 +307,12 @@ int main(void){
     //Call the naive kernel
     cudaEventRecord(startNaive);
     int blockSize = 32;
+
     dim3 blockDim(blockSize,blockSize), gridDim( 1 + (cols - 1) / blockSize,
                                              1 + (rows - 1) / blockSize);
     naiveConvolution<<<gridDim, blockDim>>>
         (deviceInput, deviceMask, deviceOutput, rows, cols, maskVal);
+
     cudaEventRecord(stopNaive);
     cudaEventSynchronize(stopNaive);
     milliseconds = 0;
@@ -248,6 +331,7 @@ int main(void){
         }
     }
     
+//--------------------CONSTANT MEMORY--------------------
 
     //CUDA CONSTANT MEM
     cudaMemcpyToSymbol(consMask, hostMask, maskVal * maskVal);
@@ -264,6 +348,69 @@ int main(void){
     cudaEventElapsedTime(&milliseconds, startConstant, stopConstant);
     std::cout << "Elapsed time for constant: " << milliseconds <<std::endl;
     
+//--------------------SHARED MEMORY--------------------
+
+    //CUDA SHARED
+    cudaEvent_t startShared, stopShared;
+    cudaEventCreate(&startShared);
+    cudaEventCreate(&stopShared);
+
+    cudaEventRecord(startShared);
+    int gridTileSize = 28;
+    //Readjust grid
+    dim3 sharedGridDim( 1 + (cols - 1) / gridTileSize,
+                1 + (rows - 1) / gridTileSize);
+    sharedConvolution<<<sharedGridDim, blockDim>>>
+        (deviceInput, deviceOutput, rows, cols, maskVal);
+    cudaEventRecord(stopShared);
+    cudaEventSynchronize(stopShared);
+    milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, startShared, stopShared);
+    std::cout << "Elapsed time for shared: " << milliseconds <<std::endl;
+
+
+    //Re-checking
+    cudaEvent_t startMemoryReturn, stopMemoryReturn;
+    cudaEventCreate(&startMemoryReturn);
+    cudaEventCreate(&stopMemoryReturn);
+    cudaEventRecord(startMemoryReturn);
+    err = cudaMemcpy(hostOutput, deviceOutput,
+                            rows * cols * sizeof(unsigned char),
+                            cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+    cudaEventRecord(stopMemoryReturn);
+    cudaEventSynchronize(stopMemoryReturn);
+    milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, startMemoryReturn, stopMemoryReturn);
+    std::cout << "Elapsed time for image to return to CPU: " << milliseconds <<std::endl;
+
+    //Check wether output is correct
+    for(int i = 0; i < rows; i++){
+        for(int j = 0; j < cols; j++){
+            assert(hostOutput[i * cols + j] == outputImage[i][j]);
+        }
+    }
+
+
+//--------------------SHARED MEMORY LESS DIVERGENCE--------------------
+    //CUDA LESS DIVERGENCE
+    cudaEvent_t startDivergence, stopDivergence;
+    cudaEventCreate(&startDivergence);
+    cudaEventCreate(&stopDivergence);
+
+    cudaEventRecord(startDivergence);
+    //int gridTileSize = 28;
+    //Readjust grid
+    //dim3 sharedGridDim( 1 + (cols - 1) / gridTileSize,
+    //            1 + (rows - 1) / gridTileSize);
+    sharedConvolution<<<sharedGridDim, blockDim>>>
+        (deviceInput, deviceOutput, rows, cols, maskVal);
+    cudaEventRecord(stopDivergence);
+    cudaEventSynchronize(stopDivergence);
+    milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, startDivergence, stopDivergence);
+    std::cout << "Elapsed time for no divergence: " << milliseconds <<std::endl;
+
 
 
     //Memory Freeing
@@ -273,10 +420,14 @@ int main(void){
     cudaFree(deviceOutput);
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
+    cudaEventDestroy(startMemoryTransfer);
+    cudaEventDestroy(stopMemoryTransfer);
     cudaEventDestroy(startNaive);
     cudaEventDestroy(stopNaive);
     cudaEventDestroy(startConstant);
     cudaEventDestroy(stopConstant);
+    cudaEventDestroy(startShared);
+    cudaEventDestroy(stopShared);
     
 
     //CPU
