@@ -15,7 +15,9 @@
 
 // Namespace function declarations
 using namespace cv;
-using namespace std;
+using std::cout;
+using std::endl;
+using std::cerr;
 
 int main(int argc, char **argv)
 {
@@ -26,6 +28,13 @@ int main(int argc, char **argv)
 
     cerr << "Usage: {programName} path/to/image" << endl; // (0: CPU | 1: GPU)" << endl;
     exit(-1);
+  }
+  int method = atoi(argv[2]);
+  if((method != 0) && (method != 1))
+  {
+    cerr << "Method must be (0: CPU | 1: GPU)" << endl;
+    exit(-1);
+
   }
 
   // Read the image file
@@ -48,10 +57,9 @@ int main(int argc, char **argv)
   // Vector containing the coordinate values of the circles found.
   std::vector<Vec3f> circles;
 
-  // cv::imshow("Before Manipulation | Main", inputImage);
-  // cv::waitKey();
+  
 
-  houghTransform(inputImage, circles, 1);
+  houghTransform(inputImage, circles, method);
 
   /*
    *
@@ -68,11 +76,11 @@ int main(int argc, char **argv)
 
       Vec3i cir = circles[i];
 
-      circle(inputImage, Point(cir[0], cir[1]), 1, Scalar(0, 0, 0), 2, LINE_AA);
       circle(inputImage, Point(cir[0], cir[1]), cir[2], Scalar(0, 0, 0), 2, LINE_AA);
+      circle(inputImage, Point(cir[0], cir[1]), 1, Scalar(128,128,128), 2, LINE_AA);
     }
-    imshow("Test Circles found", inputImage);
-    waitKey();
+    // imshow("Test Circles found", inputImage);
+    // waitKey();
   }
   else
   {
