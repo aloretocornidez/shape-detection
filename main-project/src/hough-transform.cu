@@ -8,6 +8,7 @@
 // Hough Tranform Kernel Definitions
 #define HOUGH_TRANSFORM_NAIVE_KERNEL 1
 #define HOUGH_TRANSFORM_NAIVE_KERNEL2 2
+#define HOUGH_TRANSFORM_SHARED_LOCAL_ACCUMULATOR 3
 #define DEGREES_TO_RADIANS 0.0120830485
 
 // Sample Kernel for memory access of an image.
@@ -92,7 +93,7 @@ __global__ void hough_transform_kernel_naive(uchar *srcImage, unsigned int *rTab
     int column = threadIdx.x + blockIdx.x * blockDim.x;
 
     // Check if the thread is within image bounds.
-    if ( row < (imageRows - minimumRadius) && row > minimumRadius && column < (imageColumns - minimumRadius) && column > minimumRadius)
+    if (row < (imageRows - minimumRadius) && row > minimumRadius && column < (imageColumns - minimumRadius) && column > minimumRadius)
     {
 
         for (int radius = minimumRadius; radius < maximumRadius - minimumRadius; radius++)
@@ -109,7 +110,7 @@ __global__ void hough_transform_kernel_naive(uchar *srcImage, unsigned int *rTab
                 int pixelValue = srcImage[imageIndex];
                 if (pixelValue < 10)
                 {
-                  atomicAdd(&rTable[(radius * imageColumns * imageRows) + row * imageColumns + column], 1);
+                    atomicAdd(&rTable[(radius * imageColumns * imageRows) + row * imageColumns + column], 1);
                 }
             }
         }
@@ -138,6 +139,103 @@ __global__ void hough_transform_kernel_naive2(uchar *srcImage, unsigned int *rTa
                 int imageIndex = (row + deltaY) * imageColumns + (column + deltaX);
 
                 int pixelValue = srcImage[imageIndex];
+                if (pixelValue < 10)
+                {
+
+                    accumulator++;
+                }
+            }
+
+            atomicAdd(&rTable[(radius * imageColumns * imageRows) + row * imageColumns + column], accumulator);
+        }
+    }
+}
+
+// Did not take into account the amount of memory available on the system.
+__global__ void hough_transform_kernel_shared_local_accumulator(uchar *srcImage, unsigned int *rTable, int imageRows, int imageColumns, int minimumRadius, int maximumRadius, int distance)
+{
+    int row = threadIdx.y + blockIdx.y * blockDim.y;
+    int column = threadIdx.x + blockIdx.x * blockDim.x;
+
+    extern __shared__ uchar *sharedSrcImage;
+
+    uchar *sharedSrcImageData = sharedSrcImage;
+
+    if (row < imageRows && column < imageColumns)
+    {
+        sharedSrcImage[row * imageColumns + column] = srcImage[row * imageColumns + column];
+    }
+
+    __syncthreads();
+
+    // Check if the thread is within image bounds.
+    if (row < (imageRows - minimumRadius) && row > minimumRadius && column < (imageColumns - minimumRadius) && column > minimumRadius)
+    {
+
+        for (int radius = minimumRadius; radius < maximumRadius - minimumRadius; radius++)
+        {
+            int threshold = ((log10f(radius * 2 / 3)) * 80) / log10f(3);
+            int accumulator = 0;
+
+            for (int theta = 0; theta < 360; theta++)
+            {
+                int deltaX = cos(DEGREES_TO_RADIANS * theta) * radius;
+                int deltaY = sin(DEGREES_TO_RADIANS * theta) * radius;
+
+                int imageIndex = (row + deltaY) * imageColumns + (column + deltaX);
+
+                // int pixelValue = srcImage[imageIndex];
+                int pixelValue = sharedSrcImageData[imageIndex];
+
+                if (pixelValue < 10)
+                {
+
+                    accumulator++;
+                }
+            }
+
+            atomicAdd(&rTable[(radius * imageColumns * imageRows) + row * imageColumns + column], accumulator);
+        }
+    }
+}
+
+
+// Change the algorithm so that each thread focuses on one part of the image.
+__global__ void hough_transform_kernel_shared_local_accumulator(uchar *srcImage, unsigned int *rTable, int imageRows, int imageColumns, int minimumRadius, int maximumRadius, int distance)
+{
+    int row = threadIdx.y + blockIdx.y * blockDim.y;
+    int column = threadIdx.x + blockIdx.x * blockDim.x;
+
+    extern __shared__ uchar *sharedSrcImage;
+
+    uchar *sharedSrcImageData = sharedSrcImage;
+
+    if (row < imageRows && column < imageColumns)
+    {
+        sharedSrcImage[row * imageColumns + column] = srcImage[row * imageColumns + column];
+    }
+
+    __syncthreads();
+
+    // Check if the thread is within image bounds.
+    if (row < (imageRows - minimumRadius) && row > minimumRadius && column < (imageColumns - minimumRadius) && column > minimumRadius)
+    {
+
+        for (int radius = minimumRadius; radius < maximumRadius - minimumRadius; radius++)
+        {
+            int threshold = ((log10f(radius * 2 / 3)) * 80) / log10f(3);
+            int accumulator = 0;
+
+            for (int theta = 0; theta < 360; theta++)
+            {
+                int deltaX = cos(DEGREES_TO_RADIANS * theta) * radius;
+                int deltaY = sin(DEGREES_TO_RADIANS * theta) * radius;
+
+                int imageIndex = (row + deltaY) * imageColumns + (column + deltaX);
+
+                // int pixelValue = srcImage[imageIndex];
+                int pixelValue = sharedSrcImageData[imageIndex];
+
                 if (pixelValue < 10)
                 {
 
@@ -265,18 +363,45 @@ void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int meth
     }
     else if (method == HOUGH_TRANSFORM_NAIVE_KERNEL2)
     {
+    naiveKernel2:
+        std::cout << "Executing Hough Transform on the Local Accumulator Kernel 2" << std::endl;
         cudaEvent_t startNaiveHoughTransform, stopNaiveHoughTransform;
         cudaEventCreate(&startNaiveHoughTransform);
         cudaEventCreate(&stopNaiveHoughTransform);
 
         cudaEventRecord(startNaiveHoughTransform);
 
-        // std::cout << "Executing Hough Transform on the Naive Kernel" << std::endl;
-
         dim3 mygrid(ceil(imageColumns / (BLOCK_DIMENSIONS * 1.0)), ceil(imageRows / (BLOCK_DIMENSIONS * 1.0)));
         dim3 myblock(BLOCK_DIMENSIONS, BLOCK_DIMENSIONS);
 
         hough_transform_kernel_naive<<<mygrid, myblock>>>(gpuImageBuffer, deviceRTable, imageRows, imageColumns, minimumRadius, maximumRadius, distance);
+
+        // std::cout << "Hough Transform Naive Kernel Execution Complete" << std::endl;
+        cudaEventRecord(stopNaiveHoughTransform);
+        cudaEventSynchronize(stopNaiveHoughTransform);
+        float milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, startNaiveHoughTransform, stopNaiveHoughTransform);
+
+        std::cout << "Execution Time on the GPU: " << milliseconds << std::endl;
+    }
+    else if (method == HOUGH_TRANSFORM_SHARED_LOCAL_ACCUMULATOR)
+    {
+        std::cout << "Executing Hough Transform on the Shared Memory Kernel." << std::endl;
+        if (sizeof(uchar) * imageRows * imageColumns > 64000 / 4.0)
+        {
+            printf("The image is too large to run using shared memory. Running on global memory kernel. Rows: %d, Columns: %d\n", imageRows, imageColumns);
+            exit(-1);
+        }
+        cudaEvent_t startNaiveHoughTransform, stopNaiveHoughTransform;
+        cudaEventCreate(&startNaiveHoughTransform);
+        cudaEventCreate(&stopNaiveHoughTransform);
+
+        cudaEventRecord(startNaiveHoughTransform);
+
+        dim3 mygrid(ceil(imageColumns / (BLOCK_DIMENSIONS * 1.0)), ceil(imageRows / (BLOCK_DIMENSIONS * 1.0)));
+        dim3 myblock(BLOCK_DIMENSIONS, BLOCK_DIMENSIONS);
+
+        hough_transform_kernel_naive<<<mygrid, myblock, sizeof(uchar) * imageRows * imageColumns>>>(gpuImageBuffer, deviceRTable, imageRows, imageColumns, minimumRadius, maximumRadius, distance);
 
         // std::cout << "Hough Transform Naive Kernel Execution Complete" << std::endl;
         cudaEventRecord(stopNaiveHoughTransform);
