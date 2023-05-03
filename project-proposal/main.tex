@@ -62,15 +62,31 @@ Performance profiling was done on both machine learning and traditional approach
 
 
 \section*{Introduction}
+
+The Arizona Autonomous Vehicles Club (AZA) must use computer vision techniques to detect shapes and emergent objects in a video stream.
+The current implementation uses a machine learning approach to accomplish this.
+There are many benefits to using a trained machine learning model, such as the speed of execution after the model has been trained.
+However, there are a few issues that arise to warrant the possibility of a traditional image analysis approach.
+
+First and formost, machine learning implementations require a substantial amount of data in order to train the algorithm and result in satisfactory performance. 
+The data that is being used to train the machine learning algorithm must also be similar to the application that will make use of the algorithm. 
+The AZA club, unfortunately, does not have neither application specific training data or substantial data due constantly evolving system parameters. 
+
+For these reasons, it has come into the consideration of the club to implement a shape detection algorithm utilizing a traditional image analysis approach.
+To accomplish this task, the AZA would like to implement a shape detection algorithm capable of processing a video stream of at least 15 frames per second and detect up to 13 polygonal shapes on a modern consumer grade GeForce RTX series card.
+% Profiling of the shape detection algorithm will allow us to determine how much computing power is necessary to apply traditional image analysis techniques to our application.
 The generalized hough transform\cite{BALLARD1981111} is used to detect the shapes present in an image.
 In recent history, most image analysis applications for computer vision have been implemented using machine learning, specifically, neural networks. 
 This project aims to implement traditional digital image analysis techniques to detect shapes in an image.
 The generalized hough transform shall be implemented in a parallelized manner by utilizing a graphics processing unit (GPU).
-Perforamnce of this implementation shall be profiled in comparison to a machine learning algorithm implementation to provide infomration to the Arizona Autonomous (AZA) club at the University of Arizona.
-Analytical data on the performance of traditional image analysis techniques for shape detection will allow the AZA computer vision sub-team to select whether to proceed with a pure machine learning approach or 
-implement traditional image analysis techniques in their unmanned aerial vehicle (UAV) computer vision system.
+Perforamnce of this implementation shall be profiled in comparison to a machine learning algorithm implementation to provide information to the AZA club at the University of Arizona.
+Analytical data on the performance of the parallelized algorithm will allow the AZA computer vision sub-team to be properly informed when selecting how to proceed with their shape detection implementation. 
+%be properly informed when selecting how to proceed with their shape detection implementati. 
+% select whether to proceed with a pure machine learning approach or implement traditional image analysis techniques in their unmanned aerial vehicle (UAV) computer vision system.
+\section{Problem Description} 
 The images being analyzed are provided by an unmanned aerial vehicle (UAV) that points a camera to the ground.
-
+The images are recieved in an RGB format and must be 
+% Include and image of one of the pictures that the drone sees here. 
 
 
 There are many factors that can affect the performance of an image detection algorithm.
