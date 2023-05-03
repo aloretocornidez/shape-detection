@@ -5,6 +5,7 @@
 \usepackage{graphicx}
 \usepackage{textcomp}
 \usepackage{xcolor}
+\usepackage{listings}
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
@@ -79,30 +80,116 @@ The generalized hough transform\cite{BALLARD1981111} is used to detect the shape
 In recent history, most image analysis applications for computer vision have been implemented using machine learning, specifically, neural networks. 
 This project aims to implement traditional digital image analysis techniques to detect shapes in an image.
 The generalized hough transform shall be implemented in a parallelized manner by utilizing a graphics processing unit (GPU).
-be properly informed when selecting how to proceed with their shape detection implementati. 
+be properly informed when selecting how to proceed with their shape detection implementation. 
 % select whether to proceed with a pure machine learning approach or implement traditional image analysis techniques in their unmanned aerial vehicle (UAV) computer vision system.
 \section{Problem Description} 
-Perforamnce of this implementation shall be profiled in comparison to a machine learning algorithm implementation to provide information to the AZA club at the University of Arizona.
+Performance of this implementation shall be profiled in comparison to a machine learning algorithm implementation to provide information to the AZA club at the University of Arizona.
 Analytical data on the performance of the parallelized algorithm will allow the AZA computer vision sub-team to be properly informed when selecting how to proceed with their shape detection implementation. 
-%erformance of this implementation shall be profiled in comparison to a machine learning algorithm implementation to provide infomration to the Arizona Autonomous (AZA) club at the University of Arizona.
-Analytical data on the performance of traditional image analysis techniques for shape detection will allow the AZA computer vision sub-team to select whether to proceed with a pure machine learning approach or 
-implement traditional image analysis techniques in their unmanned aerial vehicle (UAV) computer vision system.
 The images being analyzed are provided by an unmanned aerial vehicle (UAV) that points a camera to the ground.
-The images are recieved in an RGB format and must be 
+
 % Include and image of one of the pictures that the drone sees here. 
 
+The problem statement requires that we create a GPU-accelerated algorithm to map the image contents to a corresponding shape.
+Ideally, a target rate of at least 15 FPS should be reached in order for the program to effectively complete its task at the Student Unmanned Aerial Systems Competition (SUAS) competition.
+As preliminary testing has been done, a serial, CPU-based implementation is not capable of achieving such performance, taking a total of greater than 250 seconds to analyze one image with a relatively modern CPU.
+Given this knowledge, multiple implementation optimizations must be made in order to achieve sufficient performance. 
+While there are many approaches that can be made to optimize the performance of an image detection algorithm, one of the key optimizations that is highly likely to give faster results is implementation of a highly parallelized, GPU-based application of the Hough Transform.
+Currently, the implementation done only detects circles in an image, however, AZA wishes to expand this algorithm to include the detection of multiple shapes. 
+To detect multiple shapes, the algorithm must increase in complexity. 
+Therefore, the algorithm I have currently implemented only detects circles. 
+By examining the speedup retrieved by parallelizing the detection of circles, AZA can make an informed decision to elect to continue pursuing further optimizations to detect other shapes as well. 
+What follows is an explanation of the Hough Transform algorithm, the way that the algorithm was changed to allow for the detection of circles, and afterwards, an explanation of the implementations done in both the serial domain, and in the parallel domain.
+% d the optimizations that were made to improve the detection of circles in an image.
 
-There are many factors that can affect the performance of an image detection algorithm.
-First an foremost, there are algorithmic parameters that can affect the accuracy of shape detection.
-Performance factors that affect shape detection in particuar include the kind of shape matching algorithms used.
+\section{Explanation of the Hough Transform Algorithm}
+The Hough Transform argorithm is an image analysis algorithm that allows mapping of shapes on to an image. 
+This is done via parameterization of a shape into a formula. 
+After a given shape of interest is parameterized, the program then searches the image edge-map and populates a parameter space to identify coordinates of the given shape present in the image. 
+When the population of the parameterization is complete, the program can then use the filled paraeter space to populate the image with the shapes that were identified.
+
+
+
+\subsection{Image Preprocessing}
+Before any sort algorithm that performs shape detection can be conducted, image preprocessing must be completed which conditions the image to allow for proper analysis. 
+Assuming that an input is provided as a three color channel image, for example, and RGB image, the image must be converted to grayscale. 
+After the image is converted to grayscale, an edge map must be generated. This can be done in multiple ways. 
+After an edge map is generated, the program can then run an algorithm to poplate the parameter table, otherwise referred to as the R-Table or the Hough-Array. 
+
+
+
+
+\subsection{$\rho$-$\theta$ Patameterization}
+The first implementation of what is known as the modern day Hough Transform parameterized a line onto an image by using a $\rho$-$\theta$ parameterizetion of a line. 
+That is, $\rho$ signifies the distance from the specified origin of the image, (which is chosen by the implementor of the algorithm), and $\theta$ specifies the angle of the line from the base angle. 
+
+\begin{equation}
+  \rho = x cos(\theta) + y sin(\theta) 
+  \label{eq:rho-theta-parameterization}
+\end{equation}
+
+Given the equation above, it is possible to map any straight line present in an image using two the two parameters $\rho$ and $\theta$. 
+
+\subsection{Expansion of the Hough Line Transform to Detect Circles}
+Modifying the hough transform algorithm to detect circles is a fairly straightforward change. 
+Given the equation of a circle: 
+
+\begin{equation}
+  r^2 = (x - x_n)^2 + (y - y_n)^2
+  \label{eq:circle-parameterization}
+\end{equation}
+Where $r$, $x_n$, and $y_n$ are the radius, and coordinates of the anchor point of the circle. (In my case, the center of the circle). 
+Instead of populating the R-Table with $\rho$ and $\theta$, one can populate the R-Table with three parameters, $r_{n}$, $x_{n}$, and $y_{n}$. 
+
+
+\subsection{Image Post Processing}
+After the R-Table is generated, that is the Hough Transform algorithm execution to completion. 
+However, for practical purposes, after the R-Table has been generated, it is necessary to map the shapes that are detected and place them on the image. 
+This is usually done via the use of multiple libraries that allow for high level image manipulation. 
+
+
+\section{Personal Implementation}
+Now that the algorithm has been explained, I shal discuss the approach taken to implement the hough transform on my machine. 
+The program was coded in C/C++ and the parallelization was implemented in CUDA to take advantage of the GPU on my personal system. 
+The only libraries that were used were the standard C/C++ libraries and the Opencv/Opencv-cuda. 
+While opencv contains the functions that are required to implement my application, the opencv library was only used to interface with the .PNG image protocol. And placing the detected shapes on the image.
+That is, image closing and opening, and drawing shapes on the image.
+CMake was used as the build system to simplify compilation accross the systems that are being used in AZA. 
+
+\subsection{Serial Implementation}
+Before attempting to make the optimized parallelized version, it was necessary to implement a serilized version that runs on a normal processor. 
+For the serial version, there is a 4-level nested for-loop. The algorithm iterates each pixel in both the x-axis and y-axis. Each possible radius is then looped through. The last loop that is included in the implementation is a loop to iterate through every possible theta value, this is done to check the amount of pixels that match the currently parameterized shape.   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 % When using edge-based shape matching algorithms, small shifts in shape orientation of position can greatly in large amounts of edge alignment of shapes\cite{5374408}.
 % There are algorithms that can be used to mitigate orientation and position shift errors such as the Hausdorff Distance Algorithms \cite{232073}.
 % Regardless, edge-based shape detection alorithms are subject to noise in an image resulting in false edges that make shape detection less accurate because of the sensitivity to noise and illumination changes in a frame \cite{5374408}. 
 % Filtering techniques can be implemented to reduce the noise in an image, however implementing those techniques can introduce aliasing into that system \cite{5374408}.
-Region based shape matching algorithms can be used instead of pure edge detection so that that small rotations and translations of a shape do not affect detection.
-While region based shape matching can make shape detection more robust to small disturbances like geometric rotations and translations, it is limited by the complexity of shapes that are able to be captured.
-Segmentation errors, that is, only capturing part of a region, can affect the reliability of a captured shape.
-Semgentation errors can be reduced by superimposing multiple images and mapping a larger region from the super imposed images also called over-segmentation.
 
 
 
