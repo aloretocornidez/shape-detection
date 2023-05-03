@@ -56,6 +56,7 @@ int main(int argc, char **argv)
   // Vector containing the coordinate values of the circles found.
   std::vector<Vec3f> circles;
 
+  // Execute the hough transform.
   houghTransform(inputImage, circles, method);
 
   /*
