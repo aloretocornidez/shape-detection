@@ -274,8 +274,12 @@ Although the final optimization is yet to be done, the speed improvement is stil
   \end{center}
 \end{table}
 
+As you can see, the execution of the hough transform algorithm was executed at least 70x faster, even with the naive GPU optimization. While this is still not a sufficient speed to apply this algorithm to a video feed, it is still a substantial improvement in execution speed when compared to the serialized CPU execution time. All in all, even if the goal of 15 frames per second was not reached with my direct implemention, I would like to test if using functions integrated in the OpenCV causes a greater speedup. 
 
-
+\section{Future Work}
+After this semester is over, I plan to implement the detection of multiple shapes by using the generalized hough transform and additional templates for the shapes that are required for competition, such as squares, semi-circles, and stars, just to name a few. 
+All of the source code for the project is included in my submission. 
+In addition, I have also included my LaTeX source text. 
 
 
 
