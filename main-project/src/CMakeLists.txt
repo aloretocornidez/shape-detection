@@ -25,8 +25,6 @@ set(SOURCES
 main.cpp
 hough-transform.cu
 hough-transform.hpp
-interface.hpp
-interface.cpp
 )
 
 
@@ -35,7 +33,7 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 
 # Adding Computing architectures (compute capabilities)
-set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_ARCHITECTURES "60;61")
+# set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_ARCHITECTURES "60;61")
 
 
 ################    OPENCV INCLUSION    ################
@@ -44,6 +42,6 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 target_link_libraries( ${PROJECT_NAME} ${OpenCV_LIBS} )
 ################    END OPENCV INCLUSION    ################
 
-find_package( CUDA REQUIRED)
-include_directories( ${CUDA_INCLUDE_DIRS})
-target_link_libraries( ${PROJECT_NAME} ${CUDA_LIBS} )
+# find_package( CUDA REQUIRED)
+# include_directories( ${CUDA_INCLUDE_DIRS})
+# target_link_libraries( ${PROJECT_NAME} ${CUDA_LIBS} )

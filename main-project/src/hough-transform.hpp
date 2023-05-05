@@ -1,7 +1,7 @@
 #ifndef __HOUGH_TRANSFORM__
 #define __HOUGH_TRANSFORM__
 
-#include <opencv2/core.hpp>
+#include <opencv2/opencv.hpp>
 
 /*
  * Hough Transform Functions
