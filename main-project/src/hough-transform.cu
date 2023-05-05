@@ -20,7 +20,7 @@ float milliseconds = 0;
 //Streaming implementation simulation parameters
 //For our basic implementation, number of images should be a multiple of stream size
 #define STREAM_SIZE 1
-#define NUM_IMAGES 30
+#define NUM_IMAGES 1
 
 //For our Convolution Kernels masks
 #define GAUSSIAN_KERNEL_SIZE 5

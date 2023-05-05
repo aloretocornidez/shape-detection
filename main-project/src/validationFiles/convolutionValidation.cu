@@ -1,7 +1,7 @@
 #include<stdlib.h>
 #include<time.h>
 #include<stdio.h>
-//#include <cuda_runtime.h>
+#include <cuda_runtime.h>
 #include<iostream>
 #include<assert.h>
 // #define CUDA_CHECK(ans)                                                   \
@@ -17,6 +17,7 @@
 // }
 
 cudaError_t err;
+#define CHANNELS 3 // we have 3 channels corresponding to RGB
 
 //NAIVE 2D CONVOLUTION
 __global__ void naiveConvolution(unsigned char input[], unsigned char mask[], unsigned char output[], int rows, int cols, int maskWidth){
@@ -96,7 +97,11 @@ __global__ void sharedConvolution(unsigned char input[], unsigned char output[],
     }
     __syncthreads();
     
-    if(row < rows && col < cols){
+    int colBorderCheck = blockIdx.x * outputSizeSquare  + threadIdx.x;
+    int rowBorderCheck = blockIdx.y * outputSizeSquare  + threadIdx.y;
+
+    //Boundary Checking
+    if(rowBorderCheck < rows && colBorderCheck < cols){
         if(threadIdx.x < outputSizeSquare && threadIdx.y < outputSizeSquare){
             unsigned char pixVal = 0;
             for(int j = 0; j < maskWidth; j++){
@@ -175,7 +180,7 @@ __global__ void sharedConvolutionDivergence(unsigned char input[], unsigned char
     
 }
 
-#define CHANNELS 3 // we have 3 channels corresponding to RGB
+
 // The input image is encoded as unsigned characters [0, 255]
 __global__ void colorConvert(unsigned char * rgbImage,
     unsigned char * grayImage,
@@ -358,7 +363,7 @@ void gpuConvolutionTest(void){
 //--------------------CONSTANT MEMORY--------------------
 
     //CUDA CONSTANT MEM
-    cudaMemcpyToSymbol(consMask, hostMask, maskVal * maskVal);
+    cudaMemcpyToSymbol(consMask, hostMask, maskVal * maskVal * sizeof(unsigned char));
 
     
     cudaEvent_t startConstant, stopConstant;
@@ -485,6 +490,7 @@ void sampleKernelSingle(){
     unsigned char mask2[5][5];
     unsigned char mask3[5][5];
 
+
     //Initialize Input Image
     for(int i = 0; i < 720; i++){
         for(int j = 0; j < 1280; j++){
@@ -494,26 +500,16 @@ void sampleKernelSingle(){
         }
     }
 
+
+	printf("Here1 again\n");
     //Initialize all three masks
-    for(int i = 0; i < 1280; i++){
-        for(int j = 0; j < CHANNELS; j++){
+    for(int i = 0; i < 5; i++){
+        for(int j = 0; j < 5; j++){
             mask1[i][j] = (char)rand();
         }
     }
 
-    //Initialize all three masks
-    for(int i = 0; i < 1280; i++){
-        for(int j = 0; j < CHANNELS; j++){
-            mask2[i][j] = (char)rand();
-        }
-    }
-
-    //Initialize all three masks
-    for(int i = 0; i < 1280; i++){
-        for(int j = 0; j < CHANNELS; j++){
-            mask3[i][j] = (char)rand();
-        }
-    }
+	
 
 
 //----------CUDA BEGIN----------
@@ -543,16 +539,18 @@ void sampleKernelSingle(){
     err = cudaMalloc((void**)&deviceConvolved1, rows * columns * sizeof(unsigned char));
     err = cudaMalloc((void**)&deviceConvolved2, rows * columns * sizeof(unsigned char));
     err = cudaMalloc((void**)&deviceConvolved3, rows * columns * sizeof(unsigned char));
+	printf("Here1 again\m");                
 
     //Generate input array on Host
     //Initialize Input Image
     for(int i = 0; i < rows; i++){
         for(int j = 0; j < columns; j++){
             for(int k = 0; k < CHANNELS; k++){
-                hostBGRInput[i * columns * CHANNELS + j * CHANNELS + k] = inputImage[i][j][k];
+				hostBGRInput[i * columns * CHANNELS + j * CHANNELS + k] = inputImage[i][j][k];
             }
         }
     }
+
 
     //Dimensions for blocks and grayscale grid
     int blockSize = 32;
@@ -572,6 +570,7 @@ void sampleKernelSingle(){
         }
     }
     cudaMemcpyToSymbol(consMask, hostMask, maskVal * maskVal * sizeof(unsigned char));
+printf("Here 1\n");
 
     //BEGIN OPERATIONS
     //Copy Input array to GPU
@@ -619,8 +618,8 @@ void sampleKernelSingle(){
 }
 
 //--------------------------------STREAMING TEST-----------------------------------------
-#define stream_size 2
-#define num_images 10
+#define stream_size 1
+#define num_images 30
 void betaStreamTest(){
     //----------TEST IMAGE GENERATION----------
     //Create a 720x1280 image
@@ -648,23 +647,9 @@ void betaStreamTest(){
     }
 
     //Initialize all three masks
-    for(int i = 0; i < 1280; i++){
-        for(int j = 0; j < CHANNELS; j++){
+    for(int i = 0; i < 5; i++){
+        for(int j = 0; j < 5; j++){
             mask1[i][j] = (char)rand();
-        }
-    }
-
-    //Initialize all three masks
-    for(int i = 0; i < 1280; i++){
-        for(int j = 0; j < CHANNELS; j++){
-            mask2[i][j] = (char)rand();
-        }
-    }
-
-    //Initialize all three masks
-    for(int i = 0; i < 1280; i++){
-        for(int j = 0; j < CHANNELS; j++){
-            mask3[i][j] = (char)rand();
         }
     }
 
@@ -735,7 +720,7 @@ void betaStreamTest(){
             hostMask[i * maskVal + j] = mask1[i][j];
         }
     }
-    cudaMemcpyToSymbol(consMask, hostMask, maskVal * maskVal);
+    cudaMemcpyToSymbol(consMask, hostMask, maskVal * maskVal * sizeof(unsigned char));
 
     //Initialize stream
     cudaStream_t streams[stream_size];
@@ -764,7 +749,7 @@ void betaStreamTest(){
                 (deviceConvolved2[i + j], deviceConvolved3[i + j], rows, columns, maskVal);   
 
             err = cudaMemcpyAsync(hostConvolved3[i + j], deviceConvolved3[i + j], rows * columns * sizeof(unsigned char), cudaMemcpyDeviceToHost, streams[i]);
-            cudaStreamSynchronize(streams[i]);
+            //cudaStreamSynchronize(streams[i]);
         }
     }
     cudaDeviceSynchronize();
@@ -772,8 +757,9 @@ void betaStreamTest(){
     cudaEventSynchronize(kernelEnd);
     milliseconds = 0;
     cudaEventElapsedTime(&milliseconds, kernelLaunch, kernelEnd);
-    printf("Total 30 Kernel time: %fms\n", milliseconds);
-    printf("estimated time for 30 images: %fms\n", milliseconds * 1);
+    printf("Ran with %d streams.\n", stream_size);
+    printf("Total %d images time: %fms\n", num_images, milliseconds);
+    printf("estimated time for 30 images: %fms\n", milliseconds * 30.0 / num_images);
 
 
 
@@ -802,11 +788,11 @@ void betaStreamTest(){
     
 }
 
-// int main(void){
-//     printf("Testing basic GPU convolution compatibility\n");
-//     gpuConvolutionTest();
-//     printf("\n\nTesting images with single stream element.\n");
-//     sampleKernelSingle();
-//     printf("\n\nTesting with 5 streams.\n");
-//     betaStreamTest();
-// }
+int main(void){
+    printf("Testing basic GPU convolution compatibility\n");
+    gpuConvolutionTest();
+    printf("\n\nTesting images with single stream element.\n");
+    sampleKernelSingle();
+    printf("\n\nTesting streams.\n");
+    betaStreamTest();
+}

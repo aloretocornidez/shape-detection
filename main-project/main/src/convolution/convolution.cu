@@ -619,8 +619,8 @@ void sampleKernelSingle(){
 }
 
 //--------------------------------STREAMING TEST-----------------------------------------
-#define stream_size 2
-#define num_images 5
+#define stream_size 10
+#define num_images 10
 void betaStreamTest(){
     //----------TEST IMAGE GENERATION----------
     //Create a 720x1280 image
@@ -764,7 +764,7 @@ void betaStreamTest(){
                 (deviceConvolved2[i + j], deviceConvolved3[i + j], rows, columns, maskVal);   
 
             err = cudaMemcpyAsync(hostConvolved3[i + j], deviceConvolved3[i + j], rows * columns * sizeof(unsigned char), cudaMemcpyDeviceToHost, streams[i]);
-            cudaStreamSynchronize(streams[i]);
+            //cudaStreamSynchronize(streams[i]);
         }
     }
     cudaDeviceSynchronize();
@@ -773,7 +773,7 @@ void betaStreamTest(){
     milliseconds = 0;
     cudaEventElapsedTime(&milliseconds, kernelLaunch, kernelEnd);
     printf("Total 30 Kernel time: %fms\n", milliseconds);
-    printf("estimated time for 30 images: %fms\n", milliseconds * 1);
+    printf("estimated time for 30 images: %fms\n", milliseconds * 6);
 
 
 
