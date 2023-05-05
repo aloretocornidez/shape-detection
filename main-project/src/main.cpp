@@ -38,7 +38,7 @@ int main(int argc, char **argv)
   }
 
   // Read the image file
-  Mat inputImage = imread(argv[1], IMREAD_GRAYSCALE);
+  Mat inputImage = imread(argv[1]);
 
   // Check for failure when opening the image.
   if (inputImage.empty())
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
     cout << "Image loaded: " << argv[1] << endl;
   }
 
-  cv::threshold(inputImage, inputImage, 100, 255, THRESH_BINARY);
+  //cv::threshold(inputImage, inputImage, 100, 255, THRESH_BINARY);
 
   // Vector containing the coordinate values of the circles found.
   std::vector<Vec3f> circles;
@@ -74,11 +74,11 @@ int main(int argc, char **argv)
 
       Vec3i cir = circles[i];
 
-      circle(inputImage, Point(cir[0], cir[1]), cir[2], Scalar(0, 0, 0), 2, LINE_AA);
+      circle(inputImage, Point(cir[0], cir[1]), cir[2], Scalar(128, 128, 128), 2, LINE_AA);
       circle(inputImage, Point(cir[0], cir[1]), 1, Scalar(128, 128, 128), 2, LINE_AA);
     }
-    // imshow("Test Circles found", inputImage);
-    // waitKey();
+    imwrite("testImage.jpg", inputImage);
+    //waitKey();
   }
   else
   {
