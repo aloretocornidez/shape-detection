@@ -6,11 +6,10 @@
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{listings}
-\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
-    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
-    \begin{document}
+\begin{document}
 
 \title{Shape Detection in an Image using Parallelized Traditional Image Analysis Techniques\\
 % {\footnotesize \textsuperscript{*}Note: Sub-titles are not captured in Xplore and should not be used}
@@ -35,26 +34,45 @@
 
 
 \begin{IEEEkeywords}
-image analysis, parallelization, shape detection, telemetry
+Image Processing, CUDA, GPU, Circle Detection
 \end{IEEEkeywords}
 
-\section*{Abstract}
-Modern day computer vision applications are frequently implemented using machine learning approaches. While these implementations can perform very well, the performance is heavily dependent on sufficient and accurate training data. Due to a lack of adequate training data, the Arizona Autonomous Vehicles Club (AZA) decided to implement the generalized Hough Transform to detect shapes in a live video feed from an unmanned aerial system (UAS). The Hough Transform is computationally intensive and since real-time performance is required, a serial approach may not have the execution speed necessary for the application. Image processing techniques include matrix multiplication and convolution operations which are highly parallelizable, thus, the algorithm was parallelized and implemented on a graphics processing unit (GPU). Performance profiling was done on both machine learning and traditional approaches where execution time and accuracy were compared.
+\section{Abstract}
+Modern day computer vision applications are frequently implemented using machine learning approaches.
+% While these implementations can perform very well, the performance is heavily dependent on sufficient and accurate training data.
+However, when there is not adequate, application specific training data, machine learning implementations can suffer.
+This makes manual processing of the images a necessary step to retrieve the necessary shape data.
+In this study, the Hough Transform was implemented on an NVIDIA 1070ti and resulted in a speedup of approximately 6950x for parameter space population on a $700 \times 700$ pixel image when compared to a serial version implemented on a 4.7GHz processor. 
+
+% The Arizona Autonomous Vehicles Club (AZA) requires detection of circles from a video stream, and as such, fast image analysis is required.
+
+
+% The Hough Transform is computationally intensive and since real-time performance is required, a serial approach may not have the execution speed necessary for the application.
+% Image processing techniques include a variety of matrix multiplication and convolution operations in addition to other operations which are highly parallelizable, thus, the algorithm was parallelized and implemented on a graphics processing unit (GPU).
 
 
 
 
 
-\section*{Introduction}
-Modern image analysis algorithms are computationally intensive, generally requiring powerful system compute units and algorithms optimized for the application at hand in order to be effectively implemented in a system. The Hough Transform \cite{BALLARD1981111} – an algorithm used to parameterize shapes present in an image – is one such algorithm that is computationally intensive for a traditional serial-style execution computer processing unit (CPU). The algorithm requires that a parameter space be populated in order to detect shapes that are present in an edge map of the input image. Image processing algorithms lend themselves to parallelization very well, and thus, GPUs are traditionally used in conjunction with CPUs to speed up image processing algorithm execution. While upfront costs, such as memory transfer time, must be paid to utilize heterogeneous computing architectures, overall execution time speedup still may occur due to faster computation when utilizing the specialized hardware.
+
+\section{Introduction}
+Modern image analysis algorithms are computationally intensive, generally requiring powerful system compute units and algorithms optimized for the application at hand in order to be effectively implemented in a system. 
+The Hough Transform\cite{BALLARD1981111} -– an algorithm used to parameterize shapes present in an image –- is one such algorithm that is computationally intensive for a traditional serial-style execution computer processing unit (CPU).
+The algorithm requires that a parameter space be populated in order to detect shapes that are present in an edge map of the input image.
+Image processing algorithms lend themselves to parallelization very well, and thus, GPUs are traditionally used in conjunction with CPUs to speed up image processing algorithm execution.
+While upfront costs, such as memory transfer time, must be paid to utilize heterogeneous computing architectures, overall execution time speedup still may occur due to faster computation when utilizing GPU hardware.
 
 
+\section{The Hough Transform}
+The Hough Transform implementation for our project detects circles that are present in an image.
+Thus, our parameter space utilized a three dimensional array. 
 
 \section{Related Work}
 
 
 \section{Methodology}
-The Hough Transform requires pre-processing to occur on the input image before the parameter space, also referred to as the R-Table, can be populated. The steps of the algorithm are as follows: 
+The Hough Transform requires pre-processing to occur on the input image before the parameter space, also referred to as the R-Table, can be populated.
+The steps of the algorithm are as follows:
 
 \begin{itemize}
   \item RGB to Grayscale conversion of the input image.
@@ -63,14 +81,19 @@ The Hough Transform requires pre-processing to occur on the input image before t
   \item Populate R-Table
 \end{itemize}
 
-The RGB to grayscale conversion was implemented in order to generate 
+\subsection{RGB to Grayscale Conversion}
+Grayscale conversion of an image lends itelf well to parallelization depending on the encoding of the image.
+In our case, the input image used and RGBRGB pixel ordering scheme, allowing for coalesced memory accesses.
+
+
 
 \subsection{Serial Version}
 
 
 
-
 \section{Evaluation and Validation}
+
+
 
 \section{Conclusion}
 % 200 Words Max
@@ -83,4 +106,3 @@ The RGB to grayscale conversion was implemented in order to generate
 
 
 \end{document}
-
