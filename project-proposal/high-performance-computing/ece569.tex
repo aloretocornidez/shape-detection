@@ -1,0 +1,66 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{listings}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+
+    \begin{document}
+
+\title{Shape Detection in an Image using Parallelized Traditional Image Analysis Techniques\\
+% {\footnotesize \textsuperscript{*}Note: Sub-titles are not captured in Xplore and should not be used}
+% \thanks{Identify applicable funding agency here. If none, delete this.}
+}
+
+\author{
+    \IEEEauthorblockN{Alan Manuel Loreto Cornídez}
+    \IEEEauthorblockA{\textit{College of Electrical and Computer Engineering} \\
+    \textit{The University of Arizona}\\
+    Tucson, Arizona \\
+    aloretocornidez@arizona.edu}
+\and
+    \IEEEauthorblockN{Rubén Diego Fuentes Guitérrez}
+    \IEEEauthorblockA{\textit{College of Electrical and Computer Engineering} \\
+    \textit{The University of Arizona}\\
+    Tucson, Arizona \\
+    rfuentesgtz@arizona.edu}
+}
+
+\maketitle
+
+
+\begin{IEEEkeywords}
+image analysis, parallelization, shape detection, telemetry
+\end{IEEEkeywords}
+
+\section*{Abstract}
+Modern day computer vision applications are frequently implemented using machine learning approaches. While these implementations can perform very well, the performance is heavily dependent on sufficient and accurate training data. Due to a lack of adequate training data, the Arizona Autonomous Vehicles Club (AZA) decided to implement the generalized Hough Transform to detect shapes in a live video feed from an unmanned aerial system (UAS). The Hough Transform is computationally intensive and since real-time performance is required, a serial approach may not have the execution speed necessary for the application. Image processing techniques include matrix multiplication and convolution operations which are highly parallelizable, thus, the algorithm was parallelized and implemented on a graphics processing unit (GPU). Performance profiling was done on both machine learning and traditional approaches where execution time and accuracy were compared.
+
+
+
+
+
+\section*{Introduction}
+Modern image analysis algorithms are computationally intensive, generally requiring powerful system compute units and algorithms optimized for the application at hand in order to be effectively implemented in a system. The Hough Transform \~\cite{BALLARD1981111} – an algorithm used to parameterize shapes present in an image – is one such algorithm that is computationally intensive for a traditional serial-style execution computer processing unit (CPU). The algorithm requires that a parameter space be populated in order to detect shapes that are present in an edge map of the input image. Image processing algorithms lend themselves to parallelization very well, and thus, GPUs are traditionally used in conjunction with CPUs to speed up image processing algorithm execution. While upfront costs, such as memory transfer time, must be paid to utilize heterogeneous computing architectures, overall execution time speedup still may occur due to faster computation when utilizing the specialized hardware.
+
+
+
+
+
+
+
+
+
+
+\bibliographystyle{ieeetr}
+% \bibliographystyle{plain}
+\bibliography{refs}
+
+
+\end{document}
+

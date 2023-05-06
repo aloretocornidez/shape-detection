@@ -3,6 +3,7 @@
 
 // Cuda header includes
 #include <cuda_runtime.h>
+// #include <cuda.h>
 
 // Additional Includes
 #include "hough-transform.hpp"

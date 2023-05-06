@@ -1,5 +1,6 @@
 #include "hough-transform.hpp"
 #include <iostream>
+#include <math.h>
 #include <opencv2/opencv.hpp>
 #include <cuda_runtime.h>
 
