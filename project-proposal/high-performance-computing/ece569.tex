@@ -2,10 +2,11 @@
 \usepackage{cite}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
-\usepackage{graphicx}
+\usepackage{graphicx, subfig}
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{listings}
+\usepackage{hyperref}
 
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
@@ -37,16 +38,16 @@
 Image Processing, CUDA, GPU, Circle Detection
 \end{IEEEkeywords}
 
-\section{Abstract}
+\begin{abstract}
 Modern day computer vision applications are frequently implemented using machine learning approaches.
 % While these implementations can perform very well, the performance is heavily dependent on sufficient and accurate training data.
-However, when there is not adequate, application specific training data, machine learning implementations can suffer.
+However, when training data is not adequate or application specific, performance of machine learning implementations can suffer.
 This makes manual processing of the images a necessary step to retrieve the necessary shape data.
-In this study, the Hough Transform was implemented on an NVIDIA 1070ti which resulted in a speedup of approximately 6950x for parameter space population of a $700 \times 700$ pixel image when compared to a serial version implemented on a 4.7GHz processor. 
+In this study, the Hough Transform was implemented on an NVIDIA 1070ti which resulted in a speedup of approximately 6950x for parameter space population of a 700$\times$700 pixel image when compared to a serial version implemented on a 4.7GHz processor. 
+\end{abstract}
+
 
 % The Arizona Autonomous Vehicles Club (AZA) requires detection of circles from a video stream, and as such, fast image analysis is required.
-
-
 % The Hough Transform is computationally intensive and since real-time performance is required, a serial approach may not have the execution speed necessary for the application.
 % Image processing techniques include a variety of matrix multiplication and convolution operations in addition to other operations which are highly parallelizable, thus, the algorithm was parallelized and implemented on a graphics processing unit (GPU).
 
@@ -57,34 +58,129 @@ In this study, the Hough Transform was implemented on an NVIDIA 1070ti which res
 
 \section{Introduction}
 Modern image analysis algorithms are computationally intensive, generally requiring powerful system compute units and algorithms optimized for the application at hand in order to be effectively implemented in a system. 
-The Hough Transform\cite{BALLARD1981111} -– an algorithm used to parameterize shapes present in an image –- is one such algorithm that is computationally intensive for a traditional serial-style execution computer processing unit (CPU).
+The Hough Transform(HT)\cite{BALLARD1981111} -– an algorithm used to parameterize shapes present in an image –- is one such algorithm that is computationally intensive for a traditional serial-style execution computer processing unit (CPU).
 The algorithm requires that a parameter space be populated in order to detect shapes that are present in an edge map of the input image.
 Image processing algorithms lend themselves to parallelization very well, and thus, GPUs are traditionally used in conjunction with CPUs to speed up image processing algorithm execution.
 While upfront costs, such as memory transfer time, must be paid to utilize heterogeneous computing architectures, overall execution time speedup still may occur due to faster computation when utilizing GPU hardware.
 
 
-\section{The Hough Transform}
-The Hough Transform implementation for our project detects circles that are present in an image.
-Thus, our parameter space utilized a three dimensional array. 
+
 
 \section{Related Work}
 
 
 \section{Methodology}
-The Hough Transform requires pre-processing to occur on the input image before the parameter space, also referred to as the R-Table, can be populated.
-The steps of the algorithm are as follows:
+% \subsection{The Hough Transform}
+The HT implementation for our project detects circles that are present in an image compared to traditional line detection.
+The HT itself is the population of a parameter space array, also referred to as an R-Table.
+However, in order to run the population of the R-Table, multiple pre-processing routines are necessary to preapre the image for accurate shape detection.
+% to occur on the input image before the parameter space, also referred to as the R-Table, can be populated.
+The steps of the algorithm including pre-processing are color to grayscale conversion, edge detection, followed by population of the R-Table.
 
-\begin{itemize}
-  \item RGB to Grayscale conversion of the input image.
-  \item Image Blurring 
-  \item Edge Map Generation
-  \item Populate R-Table
-\end{itemize}
+
+% Steps of the hough transform.
+\begin{figure}[h]
+  \begin{itemize}
+    \item RGB to Grayscale conversion of the input image.
+    \item Image Blurring 
+    \item Edge Map Generation
+    \item Populate R-Table
+  \end{itemize}\caption{Steps to conducting a Hough Transform on an image assuming an RGB image input.}\label{figure:hough-transform-steps}
+\end{figure}
+
+
 
 \subsection{RGB to Grayscale Conversion}
 Grayscale conversion of an image lends itelf well to parallelization depending on the encoding of the image.
-In our case, the input image used and RGBRGB pixel ordering scheme, allowing for coalesced memory accesses.
+In our case, the input image used an RGB-RGB pixel ordering scheme, allowing for coalesced memory accesses from the GPU's global memory.
+After implementation of the grayscale conversion kernel via global memory accesses, the use of shared memory was implemented.
 
+% % Unfortunately the use of shared memory did not reduce the speed of execution of the grayscale conversion.
+
+
+
+
+
+\subsection{Image Blurring}
+After the image is converted into grayscale color space, the image is de-noised by means of Gaussian blurring.
+This aids in edge map generation by filtering our high frequency elements from the image.
+To generate a blurred image, a convolution operation must be performed with a blurring mask. 
+Our implementation uses a $5 \times 5$ Gaussian blurring mask where $\sigma = 1.4$ as shown in \autoref{equation:gaussian5by5}.
+% In order to optimize the execution of the convolution operation, the use of shared memory was employed.
+
+
+\begin{figure}[h] %[h] puts the figure 'here'
+$\begin{bmatrix}
+  0.0105 && 0.2268 && 0.02927 && 0.2268 && 0.0105 \\
+  0.2268 && 0.0488 && 0.0629 && 0.0488 && 0.2268 \\
+  0.2927 && 0.0629 && 0.0812 && 0.0629 && 0.2927 \\
+  0.2268 && 0.0488 && 0.0629 && 0.0488 && 0.2268 \\
+  0.0105 && 0.2268 && 0.02927 && 0.2268 && 0.0105 \\
+\end{bmatrix}$\caption{A $5 \times 5$ Gaussian blurring mask where $\sigma = 1.4$}\label{equation:gaussian5by5}
+\end{figure}
+
+
+
+\subsection{Edge Map Generation}
+After the image has been de-noised by blurring, an edge map must be generated using two convolution operations using the vertical and horitzontal variations of the Sobel operator as shown in \autoref{figure:sobelOperator}.
+\begin{figure}[h] %[h] puts the figure 'here'
+  \centering
+  \subfloat[A $3 \times 3$ Horizontal Sobel Operator]{
+  $\begin{bmatrix}
+    -1 && -2 && -1 \\
+    0 && 0 && 0 \\
+    1 && 2 && 1 \\
+  \end{bmatrix}$\label{equation:horizontalSobel}
+  }
+  \hfil
+  \subfloat[A $3 \times 3$ Vertical Sobel Operator]{
+  $\begin{bmatrix}
+    -1 && 0 && 1 \\
+    -2 && 0 && 2 \\
+    -1 && 0 && 1 \\
+  \end{bmatrix}$\label{equation:verticalSobel}
+  }
+  \caption{A $3 \times 3$ Sobel Operator}\label{figure:sobelOperator}
+\end{figure}
+
+After the convolution operation is performed with both masks the horitzontal gradient $G_x$ and vertical gardient $G_y$ are generated. 
+After which, the gradient magnitude can be calcualted using the gradient magnitude as shown in \autoref{equation:gradientMagnitude}
+
+\begin{equation}
+  G = \sqrt{{G_x}^2 + {G_y}^2}\label{equation:gradientMagnitude}
+\end{equation}
+
+
+
+% To generate an edge map, our implementation employs the use of two convolution operations using the Sobel gradient mask in the X and Y directions.
+% Since our implementation does not require that the actual gradient be calculated, the 
+
+
+
+
+\begin{figure*}[t]
+  \centering
+  \subfloat[Input image containing circles.]{
+  \includegraphics[width=2.5in]{images/input-circles}\label{fig:input-circles}
+  }
+  \hfil
+  \subfloat[Circles detected within the image.]{
+  \includegraphics[width=2.5in]{images/detected-circles}\label{fig:detected-circles}
+  }
+  \caption{\autoref{fig:input-circles} is the input image that was used as an input to the program. \autoref{fig:detected-circles} is the output to the program when it is run.}
+\end{figure*}
+% As you can see in Figure \autoref{fig:detected-circles}, this is how I talk about it.
+
+
+
+
+
+
+
+\subsection{Populate R-Table}
+The parameter space, also referred to as an R-Table, contains 3 parameters.
+\begin{equation}X_{i}, Y_{i}, R_{i}\label{circle-parameters}\end{equation}
+Where $X_i$ and $Y_i$ are the center coordinates and $R_i$ is the radius of the detected circle.
 
 
 \subsection{Serial Version}
