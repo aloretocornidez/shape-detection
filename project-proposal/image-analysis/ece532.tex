@@ -1,0 +1,327 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{listings}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+
+    \begin{document}
+
+\title{Shape Detection in an Image using Parallelized Traditional Image Analysis Techniques\\
+% {\footnotesize \textsuperscript{*}Note: Sub-titles are not captured in Xplore and should not be used}
+% \thanks{Identify applicable funding agency here. If none, delete this.}
+}
+
+\author{
+    \IEEEauthorblockN{Alan Manuel Loreto Cornídez}
+    \IEEEauthorblockA{\textit{College of Electrical and Computer Engineering} \\
+    \textit{The University of Arizona}\\
+    Tucson, Arizona \\
+    aloretocornidez@arizona.edu}
+% \and
+%     \IEEEauthorblockN{2\textsuperscript{nd} Rubén Diego Fuentes Guitérrez}
+%     \IEEEauthorblockA{\textit{College of Electrical and Computer Engineering} \\
+%     \textit{The University of Arizona}\\
+%     Tucson, Arizona \\
+%     rfuentesgtz@arizona.edu}
+}
+
+\maketitle
+
+
+\begin{IEEEkeywords}
+image analysis, hough transform, parallelization, shape detection, telemetry, GPU, CUDA, heterogeneous computing
+\end{IEEEkeywords}
+
+\section*{Abstract}
+Modern day computer vision applications are frequently implemented using machine learning approaches.
+While these implementations can perform very well, the performance is heavily dependent on sufficient and accurate training data.
+Due to a lack of adequate training data, the Arizona Autonomous Vehicles Club (AZA) decided to implement the generalized hough transform to detect shapes in a live video feed from an unmanned aerial system (UAS).
+The Hough transform is computationally intensive and since real-time performance is required, a serial approach may not have the execution speed necessary for the application.
+Image processing techniques include matrix multiplication and convolution operations which are highly parallelizable.
+Therefore, the algorithm was parallelized and implemented on a graphics processing unit (GPU).
+Performance profiling was done on both machine learning and traditional approaches where execution time and accuracy were compared.
+
+
+% If training datasets are not available, not large enough, or not an accurate representation of the application, performance of the implementation model can suffer.
+%The generalized hough transform\cite{BALLARD1981111} is used to detect the shapes present in an image.
+
+
+
+\section*{Introduction}
+
+The Arizona Autonomous Vehicles Club (AZA) must use computer vision techniques to detect shapes and emergent objects in a video stream.
+The current implementation uses a machine learning approach to accomplish this.
+There are many benefits to using a trained machine learning model, such as the speed of execution after the model has been trained.
+However, there are a few issues that arise to warrant the possibility of a traditional image analysis approach.
+
+First and formost, machine learning implementations require a substantial amount of data in order to train the algorithm and result in satisfactory performance. 
+The data that is being used to train the machine learning algorithm must also be similar to the application that will make use of the algorithm. 
+The AZA club, unfortunately, does not have neither application specific training data or substantial data due constantly evolving system parameters. 
+
+For these reasons, it has come into the consideration of the club to implement a shape detection algorithm utilizing a traditional image analysis approach.
+To accomplish this task, the AZA would like to implement a shape detection algorithm capable of processing a video stream of at least 15 frames per second and detect up to 13 polygonal shapes on a modern consumer grade GeForce RTX series card.
+% Profiling of the shape detection algorithm will allow us to determine how much computing power is necessary to apply traditional image analysis techniques to our application.
+The generalized hough transform\cite{BALLARD1981111} is used to detect the shapes present in an image.
+In recent history, most image analysis applications for computer vision have been implemented using machine learning, specifically, neural networks. 
+This project aims to implement traditional digital image analysis techniques to detect shapes in an image.
+The generalized hough transform shall be implemented in a parallelized manner by utilizing a graphics processing unit (GPU).
+be properly informed when selecting how to proceed with their shape detection implementation. 
+% select whether to proceed with a pure machine learning approach or implement traditional image analysis techniques in their unmanned aerial vehicle (UAV) computer vision system.
+
+\section{Problem Description} 
+Performance of this implementation shall be profiled in comparison to a machine learning algorithm implementation to provide information to the AZA club at the University of Arizona.
+Analytical data on the performance of the parallelized algorithm will allow the AZA computer vision sub-team to be properly informed when selecting how to proceed with their shape detection implementation. 
+The images being analyzed are provided by an unmanned aerial vehicle (UAV) that points a camera to the ground.
+
+% Include and image of one of the pictures that the drone sees here. 
+
+The problem statement requires that we create a GPU-accelerated algorithm to map the image contents to a corresponding shape.
+Ideally, a target rate of at least 15 FPS should be reached in order for the program to effectively complete its task at the Student Unmanned Aerial Systems Competition (SUAS) competition.
+As preliminary testing has been done, a serial, CPU-based implementation is not capable of achieving such performance, taking a total of greater than 250 seconds to analyze one image with a relatively modern CPU\@.
+Given this knowledge, multiple implementation optimizations must be made in order to achieve sufficient performance. 
+While there are many approaches that can be made to optimize the performance of an image detection algorithm, one of the key optimizations that is highly likely to give faster results is implementation of a highly parallelized, GPU-based application of the Hough Transform.
+Currently, the implementation done only detects circles in an image, however, AZA wishes to expand this algorithm to include the detection of multiple shapes. 
+To detect multiple shapes, the algorithm must increase in complexity. 
+Therefore, the algorithm I have currently implemented only detects circles. 
+By examining the speedup retrieved by parallelizing the detection of circles, AZA can make an informed decision to elect to continue pursuing further optimizations to detect other shapes as well. 
+What follows is an explanation of the Hough Transform algorithm, the way that the algorithm was changed to allow for the detection of circles, and afterwards, an explanation of the implementations done in both the serial domain, and in the parallel domain.
+% d the optimizations that were made to improve the detection of circles in an image.
+
+\section{Explanation of the Hough Transform Algorithm}
+The Hough Transform argorithm is an image analysis algorithm that allows mapping of shapes on to an image. 
+This is done via parameterization of a shape into a formula. 
+After a given shape of interest is parameterized, the program then searches the image edge-map and populates a parameter space to identify coordinates of the given shape present in the image. 
+When the population of the parameterization is complete, the program can then use the filled paraeter space to populate the image with the shapes that were identified.
+
+
+
+\subsection{Image Preprocessing}
+Before any sort algorithm that performs shape detection can be conducted, image preprocessing must be completed which conditions the image to allow for proper analysis. 
+Assuming that an input is provided as a three color channel image, for example, and RGB image, the image must be converted to grayscale. 
+After the image is converted to grayscale, an edge map must be generated. This can be done in multiple ways. 
+After an edge map is generated, the program can then run an algorithm to poplate the parameter table, otherwise referred to as the R-Table or the Hough-Array. 
+
+
+
+
+\subsection{$\rho$-$\theta$ Patameterization}
+The first implementation of what is known as the modern day Hough Transform parameterized a line onto an image by using a $\rho$-$\theta$ parameterizetion of a line. 
+That is, $\rho$ signifies the distance from the specified origin of the image, (which is chosen by the implementor of the algorithm), and $\theta$ specifies the angle of the line from the base angle. 
+
+\begin{equation}
+  \rho = x \cos(\theta) + y \sin(\theta) 
+  \label{eq:rho-theta-parameterization}
+\end{equation}
+
+Given the equation above, it is possible to map any straight line present in an image using two the two parameters $\rho$ and $\theta$. 
+
+\subsection{Expansion of the Hough Line Transform to Detect Circles}
+Modifying the hough transform algorithm to detect circles is a fairly straightforward change. 
+Given the equation of a circle: 
+
+\begin{equation}
+  r^2 = {(x - x_n)}^2 + {(y - y_n)}^2
+  \label{eq:circle-parameterization}
+\end{equation}
+Where $r$, $x_n$, and $y_n$ are the radius, and coordinates of the anchor point of the circle. (In my case, the center of the circle). 
+Instead of populating the R-Table with $\rho$ and $\theta$, one can populate the R-Table with three parameters, $r_{n}$, $x_{n}$, and $y_{n}$. 
+
+
+\subsection{Image Post Processing}
+After the R-Table is generated, that is the Hough Transform algorithm execution to completion. 
+However, for practical purposes, after the R-Table has been generated, it is necessary to map the shapes that are detected and place them on the image. 
+This is usually done via the use of multiple libraries that allow for high level image manipulation. 
+
+
+\section{Code Description}
+Now that the algorithm has been explained, I shall discuss the approach taken to implement the hough transform on my machine. 
+The program was coded in C/C++ and the parallelization was implemented in CUDA to take advantage of the GPU on my personal system. 
+The only libraries that were used were the standard C/C++ libraries and the opencv/Opencv-cuda. 
+While opencv contains the functions that are required to implement my application, the opencv library was only used to interface with the PNG image protocol. And placing the detected shapes on the image.
+That is, image closing and opening, and drawing shapes on the image.
+An interface that contained the circles found in the image was used to draw the images using opencv. 
+CMake was used as the build system to simplify compilation accross the systems that are being used in AZA, my personal system used Makefiles. 
+
+\subsection{Serial Implementation}
+Before attempting to make the optimized parallelized version, it was necessary to implement a serilized version that runs on a normal processor. 
+All elements of the algorithm were initially implemented on the CPU\@. This includes the grayscale conversion and edge-map generation. 
+After the image pre-processing was completed, a function was called to execute the population of the R-Table in a serial manner. 
+For the serial version, there is a 4-level nested for-loop. The algorithm iterates each pixel in both the x-axis and y-axis. Each possible radius is then looped through. The last loop that is included in the implementation is a loop to iterate through every possible theta value, this is done to check the amount of pixels that match the currently parameterized shape. 
+The code then increments a value that checks how many of the pixels in the edge map are part of the parameterized shape. 
+If the accumulated value is greater than the threshold, a shape is considered to be found and the shape is then added to a list of detected shapes. 
+
+
+\section{Parallelization}
+Multiple optimizations are possible to implement by using GPUs. 
+The nature of GPUs lends itself to image processing very well. 
+The pre-processing steps in the application are readily parallelizable. 
+The first optimization made included using a GPU for the image pre-processing. 
+The first pre-processing algorithm to be optimized was the grayscale conversion of the image. 
+Since the values of each color channel for a pixel are stored sequentially in the image, memory accesses are coalesced, resulting in quick grayscale conversions by each thread. 
+
+
+\subsection{Data Preparation}
+One of the issues that a programmer must think of when implementing the use of additional computing platforms, in my case, a GPU, is memory and data management. 
+Because of this, I spent a while learning how to manipulate the data within the cv::Mat object in the CV library. 
+Specifically, I learned how to find the pointer to the elements contained within the cv::Mat object that allow for direct pixel manipulation. This allowed me to copy the image matrices from the host memory, or CPU, to the GPU referred to as the device memory in CUDA documentation. 
+After implementing the data management, it was possible to manipulate the image directly on the GPU\@. 
+The data must be copied bi-directionally, both from the host to the device to prepare for execution and from the device to the host after execution.  
+
+
+\subsection{Image Pre-processing}
+Implementation of the next two image pre-processing algorithms was very straightforward. 
+The next two parts of the Hough Transform pre-processing require that an edge-map be generated for the image. 
+While this can be done in multiple ways, the way that I implemented it involved using three convolution steps. 
+The first convolution operation blurs the image, the next two operations calculate the gradient in the x-axis direction and the y-axis direction convolution masks were used, each of them were 3 $\times$ 3 masks. 
+The first mask was a gaussian kernel mask that used a standard deviation set by the user, in my case 0.89 worked well and generated a clean edge-map. The mask for a 3 $\times$ 3 gaussian kernel is shown below:
+
+\begin{equation}
+  \begin{bmatrix}
+    0.055 && 0.111 && 0.055 \\
+    0.111 && 0.225 && 0.111 \\
+    0.055 && 0.111 && 0.055
+  \end{bmatrix}
+  \label{eq:gaussianKernel}
+\end{equation}
+
+After the image is convolved with this mask, the image can then be convolved with the Sobel Operator mask in both the x-axis direction and the y-axis direction to generate a gradient meausrement $G$ from the equation $G = \sqrt{G_y^2 + G_x^2}$. 
+The masks used are both shown below. 
+First, the x-axis direction Sobel Operator.
+
+\begin{equation}
+  \begin{bmatrix}
+    1 && 0 && -1 \\
+    2 && 0 && -2 \\
+    1 && 0 && -1
+  \end{bmatrix}
+  \label{eq:xSobelOperator}
+\end{equation}
+
+The y-axis Sobel Operator. 
+
+\begin{equation}
+  \begin{bmatrix}
+    1 && 2 && 1 \\
+    0 && 0 && 0 \\
+    -1 && -2 && -1
+  \end{bmatrix}
+  \label{eq:ySobelOperator}
+\end{equation}
+
+After both pixels are calculated, the value is then thresholded in the same function. While this implementation does not use Non-maximum supression, it provides an edge map with sufficient performance for the circles in the test images. 
+
+\section{R-Table Generation}
+After image pre-processing is completed, the actual hough-transform algorithm can be conducted. 
+The first optimization that I attempted to make to the Hough Transform was a very direct implementation of the use of GPU threads. 
+The GPU architecture can take advantage of using a single thread calculate the R-Table of one set of parameters. 
+In my implementation, the GPU calls a kernel where each thread to populates the R-Table for the circles at a given coordinate, iterating through all of the possible radius parameters.
+This is the exent of the parallelization up to this point. 
+The next few optimizations that are discussed focus on low level details to improve the execution time of the kernel execution. 
+
+\subsection{Low Level Improvements to Parallelization}
+To improve the execution of the population of the Hough-Array, low level optimizations were introduced in the hopes thats the execution time would further diminish. 
+The next few optimizations that were attempted were using a local variable to store the number of points that fit into the current thread's parameter test. 
+Since the population of the R-Table is similar to a histogram population, I proceeded with this optimization hoping to a large improvement in the execution time, however, after implementing the new algorithm, the performance increase was not substantial. 
+This is likely due to the fact that atomic-add operations do not experience memory collisions within the GPU itself. 
+The reason this occurs is beacause each thread works on an individual parameter. 
+The next low-level optimization that I attempted to make involved using the shared memory that is available to a group of threads. 
+By using shared memory amongst thread groups, it is possible to experience faster memory acceses which would reduce execution time. 
+A downside to implementing the shared memory is that the image must be copied from the GPU global memory to the GPU shared memory. 
+While this does have an initial execution time cost, it is theoretically offset by the increase in memory reads for an image. 
+After attempting to implement the shared memory in the algorithm, an issue that arose that was not fully considered was the size of the image and the amount of shared memory available. 
+The total amount of shared memory available in my GPU was only 64KB, this was not enough to hold the 8-bit pixel values for all of the rows and columns that were in the image. 
+In order to take full advantage of the shared memory, the parallelization of the R-Table population must be completely changed. 
+Though I did not have a working implementation of the following algorithm, I would like to explain the concept in order to discuss the performance benefits that can allow the application to not only take advantage of the shared memory in the GPU, but also utilize the previous optimizations made involving a local accumulator. 
+The way to take adavantage of the shared memory is by either reducing the image size via down sampling or by reducing the total part of the image that a single thread group must analyze. 
+By making each thread check only a quarter of the total circle, the shared memory amongst the group of threads would only need to load in a quarter of the image instead of the entire image. 
+After each thread begins to work on the image, multiple threads would then be conducting atomic-add operations to the same parameter, leading to memory collisions in global memory. 
+This issue will have already been addresed via the implementation of a local accumulator, leading to a compounding of benefits from previous optimizations. 
+While I was not able to implement this algorithm for the scope of this class, I shall continue work on this in the future in order to help AZA more effectively detect the shapes in video feed. 
+
+\section{Results}
+Although the final optimization is yet to be done, the speed improvement is still extremely substantial. Below are the results for the serial (CPU) implementation, the GPU (Naive) implemention, and the GPU (Local Accumulator) implementation. 
+
+
+
+\begin{table}
+  \caption{Hough Transform Execution Results}\label{tab:executionTimes}
+  \begin{center}
+    \begin{tabular}[c]{l|l|l}
+      \hline
+      \multicolumn{1}{c|}{\textbf{Serial}} & 
+      \multicolumn{1}{c|}{\textbf{GPU (Naive)}} & 
+      \multicolumn{1}{c}{\textbf{GPU (Local Accumulator)}} \\
+      \hline
+      285 s & 4090 ms & 4067 ms\\
+      
+      \hline
+    \end{tabular}
+  \end{center}
+\end{table}
+
+As you can see, the execution of the hough transform algorithm was executed at least 70x faster, even with the naive GPU optimization. While this is still not a sufficient speed to apply this algorithm to a video feed, it is still a substantial improvement in execution speed when compared to the serialized CPU execution time. All in all, even if the goal of 15 frames per second was not reached with my direct implemention, I would like to test if using functions integrated in the OpenCV causes a greater speedup. 
+
+\section{Future Work}
+After this semester is over, I plan to implement the detection of multiple shapes by using the generalized hough transform and additional templates for the shapes that are required for competition, such as squares, semi-circles, and stars, just to name a few. 
+All of the source code for the project is included in my submission. 
+In addition, I have also included my LaTeX source text. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+% When using edge-based shape matching algorithms, small shifts in shape orientation of position can greatly in large amounts of edge alignment of shapes\cite{5374408}.
+% There are algorithms that can be used to mitigate orientation and position shift errors such as the Hausdorff Distance Algorithms \cite{232073}.
+% Regardless, edge-based shape detection alorithms are subject to noise in an image resulting in false edges that make shape detection less accurate because of the sensitivity to noise and illumination changes in a frame \cite{5374408}. 
+% Filtering techniques can be implemented to reduce the noise in an image, however implementing those techniques can introduce aliasing into that system \cite{5374408}.
+
+
+
+
+% Including the references and creating a bibliography.
+\bibliographystyle{ieeetr}
+% \bibliographystyle{plain}
+\bibliography{refs}
+
+
+\end{document}
+
