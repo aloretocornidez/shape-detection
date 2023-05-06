@@ -46,16 +46,34 @@ Modern day computer vision applications are frequently implemented using machine
 
 
 \section*{Introduction}
-Modern image analysis algorithms are computationally intensive, generally requiring powerful system compute units and algorithms optimized for the application at hand in order to be effectively implemented in a system. The Hough Transform \~\cite{BALLARD1981111} – an algorithm used to parameterize shapes present in an image – is one such algorithm that is computationally intensive for a traditional serial-style execution computer processing unit (CPU). The algorithm requires that a parameter space be populated in order to detect shapes that are present in an edge map of the input image. Image processing algorithms lend themselves to parallelization very well, and thus, GPUs are traditionally used in conjunction with CPUs to speed up image processing algorithm execution. While upfront costs, such as memory transfer time, must be paid to utilize heterogeneous computing architectures, overall execution time speedup still may occur due to faster computation when utilizing the specialized hardware.
+Modern image analysis algorithms are computationally intensive, generally requiring powerful system compute units and algorithms optimized for the application at hand in order to be effectively implemented in a system. The Hough Transform \cite{BALLARD1981111} – an algorithm used to parameterize shapes present in an image – is one such algorithm that is computationally intensive for a traditional serial-style execution computer processing unit (CPU). The algorithm requires that a parameter space be populated in order to detect shapes that are present in an edge map of the input image. Image processing algorithms lend themselves to parallelization very well, and thus, GPUs are traditionally used in conjunction with CPUs to speed up image processing algorithm execution. While upfront costs, such as memory transfer time, must be paid to utilize heterogeneous computing architectures, overall execution time speedup still may occur due to faster computation when utilizing the specialized hardware.
 
 
-\section{The Hough Transform}
-The Hough Transform implementation that our team did implemented the Hough Transform to detect circles that are present in an image. Thus, our parameter space utilized a three dimensional array. 
 
-\section{Results and Analysis}
+\section{Related Work}
 
-\section{Discussion and Future Work}
 
+\section{Methodology}
+The Hough Transform requires pre-processing to occur on the input image before the parameter space, also referred to as the R-Table, can be populated. The steps of the algorithm are as follows: 
+
+\begin{itemize}
+  \item RGB to Grayscale conversion of the input image.
+  \item Image Blurring 
+  \item Edge Map Generation
+  \item Populate R-Table
+\end{itemize}
+
+The RGB to grayscale conversion was implemented in order to generate 
+
+\subsection{Serial Version}
+
+
+
+
+\section{Evaluation and Validation}
+
+\section{Conclusion}
+% 200 Words Max
 
 
 
