@@ -218,7 +218,18 @@ The generation of the R-Table has a histogram like implementation where many dat
 \subsection*{Histogram Generation Optimizations}
 The R-Table parameterization was implemented in three ways. A global memory implementation, a local accumulator implementation, and a shared memory implementation.
 The first implementation generates the R-Table by mapping each thread to a separate radius.
-This means that the image reads
+Generation of the histrogram in a parallelized fashion has trade-offs that must be addressed. 
+In the initial implementation, each thread is responsible for a populating the parameters in a separate bin, that is, the data was transformed in a gathering pattern. 
+The second iteration of the R-Table population operation implemented a local accumulator variable in place of an atomic add operation, only running an atomic add after completion of the parameterization.
+In theory, this reduces the amount of memory contention that is present within the R-Table stored on the GPU\@.
+However, since each thread populates a different parameter, the data access pattern has low memory contention.
+Thus, mostly nullifying the benefits of a local accumulator that would be present if the algorithm implementation contained greater memory contention.
+% because of the lack of memory contention present in the was the algorithm is implmeneted.
+After examining the data access pattern, it can be concluded that the bottleneck in the algorithm is the with the manipulation of the histogram, but instead lies in the speed at which image data is accessed.
+This led to the next proposed optimization to be including the use of shared memory within a thread block.
+The third implementation would use each thread to copy the image onto shared memory, decreasing the amount of time that would be required to access the image.
+However, the shared memory was too small to contain the entire image and thus, the implementation failed. 
+
 
 
 
