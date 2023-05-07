@@ -72,6 +72,7 @@ While upfront costs, such as memory transfer time, must be paid to utilize heter
 
 
 \section{Methodology}
+In this work, we 
 % \subsection{The Hough Transform}
 The HT implementation for our project detects circles that are present in an image compared to traditional line detection.
 The HT itself is the population of a parameter space array, also referred to as an R-Table.
@@ -199,10 +200,10 @@ In our case, the thresh holding value in our application was hard hard coded int
 % % This is obviously not good.
 
 
-\subsection{Histogram Population}
+\subsection{Histogram Generation}
+\subsubsection{R-Table Generation}
 Image pre-processing has been completed after the edge map has been generated and binarized via grayscale thresholding.
 The next part of the algorithm is population of the R-Table in order to parameterize the circles that are present in the image.
-The R-Table parameterization was implemented in three ways. A global memory implementation, a local accumulator implementation, and a shared memory implementation.
 \subsubsection{Populate R-Table}
 The parameter space, also referred to as an R-Table, contains 3 bins to parameterize a circle.
 \begin{equation}
@@ -212,6 +213,14 @@ Where $X_i$ and $Y_i$ are the center coordinates and $R_i$ is the radius of the 
 In a serial implementation, one would cycle through each possible parameter and check how many edge pixels are present along the parameterized shape. 
 A count of matching pixels is then accumulated for each bin in the parameter space.
 After the R-Table is populated with the corresponding parameters, the HT algorithm itself has terminated to completion.
+The generation of the R-Table has a histogram like implementation where many data are being transported to one location.
+
+\subsection*{Histogram Generation Optimizations}
+The R-Table parameterization was implemented in three ways. A global memory implementation, a local accumulator implementation, and a shared memory implementation.
+The first implementation generates the R-Table by mapping each thread to a separate radius.
+This means that the image reads
+
+
 
 
 
