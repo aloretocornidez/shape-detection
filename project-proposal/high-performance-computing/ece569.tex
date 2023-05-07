@@ -110,8 +110,28 @@ Convolution is an algorithm that generates the convolution pixel by summing the 
 \end{equation}
 Where $m$ is the mask matrix and $s$ is the source image matrix, $u$ and $v$ are the mask matrix dimensions. In our case, the mask matrices are square matrices.
 Convolution is an algorithm that is readily parallelizable when implemented on a GPU, and as such, there were multiple optimizations that were made to extract as much performance as possible for image pre-processing.
-Our convolution kernels were implemented in three forms. 
+Our convolution kernels were implemented in three iterations. 
 A convolution kernel using global memory, a kernel utilizing shared memory stored in a 2D array, and a kernel utilizing shared memory stored in a 1D array.
+
+\subsubsection{Naive Convolution Implementation}
+When first implementing the convolution kernel, each thread calculates the convolution-pixel corresponding to its position. 
+Bounds checking is conducted to ensure that thread divergence does not occur. 
+After which, the output pixel is accumulated by accessing the image data from global memory and conducting element-wise multiplication with the convolution mask. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 By using a variety of masks across the images, it is possible to extract features or generate new kinds of maps that can be utilized by the HT\@.
 Image de-noising and gradient maps are both results of convolution operations with different masks.
 
@@ -210,6 +230,8 @@ After the R-Table is populated with the corresponding parameters, the HT algorit
 
 
 \section{Evaluation and Validation}
+% Now that our
+\subsection{Convolution Optimizations}
 
 
 
