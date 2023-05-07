@@ -189,14 +189,14 @@ After the image has been de-noised by blurring, an edge map must be generated us
 
 \subsubsection{Grayscale Thesholding}
 After the convolution operation is performed with both masks the horitzontal gradient $G_x$ and vertical gradient $G_y$ are generated. 
-The gradient magnitude can be calculated using the gradient magnitude as shown in \autoref{equation:gradientMagnitude}.
+The gradient magnitude can be calculated using the gradient magnitude, $G$, as shown in \autoref{equation:gradientMagnitude}.
 
 \begin{equation}
   G = \sqrt{{G_x}^2 + {G_y}^2}\label{equation:gradientMagnitude}
 \end{equation}
 
 Image thresholding must be applied in order to generate the final edge map.
-In our case, the thresh holding value in our application was hard hard coded into our application where the value chosen based off of experimentation for our application.
+In our case, the thresholding value in our application was hard hard coded into our application where the value chosen based off of experimentation for our application.
 % % This is obviously not good.
 
 
@@ -224,12 +224,34 @@ The second iteration of the R-Table population operation implemented a local acc
 In theory, this reduces the amount of memory contention that is present within the R-Table stored on the GPU\@.
 However, since each thread populates a different parameter, the data access pattern has low memory contention.
 Thus, mostly nullifying the benefits of a local accumulator that would be present if the algorithm implementation contained greater memory contention.
-% because of the lack of memory contention present in the was the algorithm is implmeneted.
 After examining the data access pattern, it can be concluded that the bottleneck in the algorithm is the with the manipulation of the histogram, but instead lies in the speed at which image data is accessed.
 This led to the next proposed optimization to be including the use of shared memory within a thread block.
-The third implementation would use each thread to copy the image onto shared memory, decreasing the amount of time that would be required to access the image.
-However, the shared memory was too small to contain the entire image and thus, the implementation failed. 
+The third implementation uses each thread to copy the image onto shared memory, decreasing the amount of time that would be required to access the image.
+However, the shared memory was not sufficient to contain the entire image when using the current algorithm.
 
+\subsubsection*{Addressing Shared Memory Storage Limits}
+There are two methods proposed to adress this storage space issue. 
+The first way to adress the issue is by down sampling the image to reduce the image size, making sure to de-noise the image in the down-sampling process. 
+By down sampling the image, the image may be capabable of fitting on the GPU's shared memory dependent on the application.
+Our GPU, has a shared memory size of 64kB.
+Downsampling by a factor of 4, reduces the $700 \times 700$ 8-bit image to a total of 122.5kB of data. 
+This reduction in image size however, is still not sufficient. 
+
+\subsubsection*{Changes to The Histogram Generation Algorithm}
+In order to allow the image to fit on shared memory, the thread workload must be modified.
+By splitting the circles into four quadrants, each thread block loads only a quarter of the image, reducing the amount of memory sapce required for each memory block to 30.625kB. 
+This algorithm while allowing for faster memory accesses than global memory after the image has been loaded on to hardware is quite directly translated from a serial implementation.
+
+
+\subsubsection*{A Different Kind of Implementation}
+The previous implementations of the algorithm thread number as the center of the circle and scan all image pixels that should be a part of the circle.
+While this implemention is very direct, it is is heavily bottlenecked by memory accesses. 
+To reduce memory accesses conducted by all threads, the algorithm used to populated the histrogram can be heavily modified.
+Instead of using thread location to determine the center of the circle, each thread can check the image for an edge pixel. 
+If the thread detects that an edge pixel is present, the histogram bin pertaining to all possible circles that house that edge pixel can be incremented.
+This optimization allows a local accumulator to have a greater effect on the execution time because memory contention would increase amoung the thread blocks and histogram. 
+This algorithm would also make traditional histogram population optimization such as private histograms produce greater speedups.
+This change in the algorithm would also increase computation time in proportion to memory transfer, optimizing the kernel for the use of CUDA streaming.
 
 
 
@@ -259,6 +281,10 @@ However, the shared memory was too small to contain the entire image and thus, t
 \section{Evaluation and Validation}
 % Now that our
 \subsection{Convolution Optimizations}
+\subsection{Histogram Population Optimizations}
+\subsection{Streaming}
+
+
 
 
 
