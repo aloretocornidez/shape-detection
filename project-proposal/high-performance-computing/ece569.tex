@@ -101,8 +101,17 @@ After implementation of the grayscale conversion kernel via global memory access
 
 
 \subsection{Convolution}
-After generating the grayscale color space image, the majority of the algorithms used in image pre-processing for the HT can be applied via a convolution operation on the image.
+After generating the gray scale color space image, the majority of the algorithms used in image pre-processing for the HT can be applied via a convolution operation on the image.
+Convolution is an algorithm that generates the convolution pixel by summing the element-wise multiplication of a source matrix and mask matrix as shown in \autoref{equation:convolution}.
+
+\begin{equation}
+  m[x,y] * s[x,y] = \sum\limits_{i = 1}^{u} \sum\limits_{j = 1}^{v} m[i,j]s[x-i, y-j]
+  \label{equation:convolution}
+\end{equation}
+Where $m$ is the mask matrix and $s$ is the source image matrix, $u$ and $v$ are the mask matrix dimensions. In our case, the mask matrices are square matrices.
 Convolution is an algorithm that is readily parallelizable when implemented on a GPU, and as such, there were multiple optimizations that were made to extract as much performance as possible for image pre-processing.
+Our convolution kernels were implemented in three forms. 
+A convolution kernel using global memory, a kernel utilizing shared memory stored in a 2D array, and a kernel utilizing shared memory stored in a 1D array.
 By using a variety of masks across the images, it is possible to extract features or generate new kinds of maps that can be utilized by the HT\@.
 Image de-noising and gradient maps are both results of convolution operations with different masks.
 
@@ -115,18 +124,19 @@ Our implementation uses a $5 \times 5$ Gaussian blurring mask where $\sigma = 1.
 
 
 \begin{figure}[h] %[h] puts the figure 'here'
-$\begin{bmatrix}
-  0.0105 && 0.2268 && 0.02927 && 0.2268 && 0.0105 \\
-  0.2268 && 0.0488 && 0.0629 && 0.0488 && 0.2268 \\
-  0.2927 && 0.0629 && 0.0812 && 0.0629 && 0.2927 \\
-  0.2268 && 0.0488 && 0.0629 && 0.0488 && 0.2268 \\
-  0.0105 && 0.2268 && 0.02927 && 0.2268 && 0.0105 \\
+  \centering
+  $\begin{bmatrix}
+  0.01 & 0.22 & 0.03 & 0.22 & 0.01 \\
+  0.22 & 0.04 & 0.06 & 0.04 & 0.22 \\
+  0.03 & 0.06 & 0.08 & 0.06 & 0.03 \\
+  0.22 & 0.04 & 0.06 & 0.04 & 0.22 \\
+  0.01 & 0.22 & 0.03 & 0.22 & 0.01 \\
 \end{bmatrix}$\caption{A $5 \times 5$ Gaussian blurring mask where $\sigma = 1.4$}\label{equation:gaussian5by5}
 \end{figure}
 
 
 \subsubsection{Gradient Map Generation}
-After the image has been de-noised by blurring, an edge map must be generated using two convolution operations using the horitzontal\ref*{sub@equation:horizontalSobel} and  vertical\ref*{sub@equation:verticalSobel} variations of the Sobel operator as shown in \autoref{figure:sobelOperator}.
+After the image has been de-noised by blurring, an edge map must be generated using two convolution operations using the horizontal\ref*{sub@equation:horizontalSobel} and  vertical\ref*{sub@equation:verticalSobel} variations of the Sobel operator as shown in \autoref{figure:sobelOperator}.
 \begin{figure}[h] %[h] puts the figure 'here'
   \centering
   \subfloat[Horizontal Operator]{
@@ -156,15 +166,27 @@ The gradient magnitude can be calculated using the gradient magnitude as shown i
 \end{equation}
 
 Image thresholding must be applied in order to generate the final edge map.
-In our case, the thresholding value in our application was hard hard coded into our application where the value chosen based off of experimentation for our application.
+In our case, the thresh holding value in our application was hard hard coded into our application where the value chosen based off of experimentation for our application.
 % % This is obviously not good.
 
 
-\subsection{Populate R-Table}
-After the image edge map 
-The parameter space, also referred to as an R-Table, contains 3 parameters.
-\begin{equation}X_{i}, Y_{i}, R_{i}\label{circle-parameters}\end{equation}
+\subsection{Histogram Population}
+Image pre-processing has been completed after the edge map has been generated and binarized via grayscale thresholding.
+The next part of the algorithm is population of the R-Table in order to parameterize the circles that are present in the image.
+The R-Table parameterization was implemented in three ways. A global memory implementation, a local accumulator implementation, and a shared memory implementation.
+\subsubsection{Populate R-Table}
+The parameter space, also referred to as an R-Table, contains 3 bins to parameterize a circle.
+\begin{equation}
+  X_{i}, Y_{i}, R_{i}\label{circle-parameters}
+\end{equation}
 Where $X_i$ and $Y_i$ are the center coordinates and $R_i$ is the radius of the detected circle.
+In a serial implementation, one would cycle through each possible parameter and check how many edge pixels are present along the parameterized shape. 
+A count of matching pixels is then accumulated for each bin in the parameter space.
+
+
+After the R-Table is populated with the corresponding parameters, the HT algorithm itself has terminated to completion. 
+
+
 
 
 
@@ -178,15 +200,12 @@ Where $X_i$ and $Y_i$ are the center coordinates and $R_i$ is the radius of the 
   \subfloat[Circles detected within the image.]{
   \includegraphics[width=2.5in]{images/detected-circles}\label{fig:detected-circles}
   }
-  \caption{\autoref{fig:input-circles} is the input image that was used as an input to the program. \autoref{fig:detected-circles} is the output to the program when it is run.}
+  \caption{\autoref{fig:input-circles} is the input image that was used as an input to the program.\autoref{fig:detected-circles} is the output to the program when it is run.}
 \end{figure*}
 % As you can see in Figure \autoref{fig:detected-circles}, this is how I talk about it.
 
 
 
-
-
-\subsection{Serial Version}
 
 
 
