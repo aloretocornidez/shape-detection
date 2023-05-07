@@ -35,15 +35,17 @@
 
 
 \begin{IEEEkeywords}
-Image Processing, CUDA, GPU, Circle Detection
+  Circle Detection, CUDA, GPU, Image Processing
 \end{IEEEkeywords}
 
 \begin{abstract}
 Modern day computer vision applications are frequently implemented using machine learning approaches.
-% While these implementations can perform very well, the performance is heavily dependent on sufficient and accurate training data.
-However, when training data is not adequate or application specific, performance of machine learning implementations can suffer.
+However, when training data is not adequate or data is not application specific, performance of implementations can suffer.
 This makes manual processing of the images a necessary step to retrieve the necessary shape data.
-In this study, the Hough Transform was implemented on an NVIDIA 1070ti which resulted in a speedup of approximately 6950x for parameter space population of a 700$\times$700 pixel image when compared to a serial version implemented on a 4.7GHz processor. 
+Image processing implementations are computationally intensive but highly parallelizable in nature and thus it is often ideal to implement them on heterogeneous computer architectures.
+In this study, the Circle Detection Hough Transform was implemented on an NVIDIA 1070ti which resulted in a speedup of approximately 6950x for parameter space population of a 700$\times$700 pixel image when compared to a serial version implemented on an i7 8700K processor running at 4.7GHz.
+Image pre-processing was also implemented in a heterogeneous fashion rendering an approximate 840x speedup with further optimizations rendering 1.44x and 1.5x speedups respectively. 
+
 \end{abstract}
 
 
