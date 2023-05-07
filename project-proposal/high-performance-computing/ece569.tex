@@ -76,6 +76,8 @@ The HT itself is the population of a parameter space array, also referred to as 
 However, in order to run the population of the R-Table, multiple pre-processing routines are necessary to preapre the image for accurate shape detection.
 % to occur on the input image before the parameter space, also referred to as the R-Table, can be populated.
 The steps of the algorithm including pre-processing are color to grayscale conversion, edge detection, followed by population of the R-Table.
+Our proposed method to implementing the HT includes using streaming in order to pipeline memory transfer with convolution calculations and R-Table population.
+
 
 
 % Steps of the hough transform.
@@ -98,10 +100,13 @@ After implementation of the grayscale conversion kernel via global memory access
 % % Unfortunately the use of shared memory did not reduce the speed of execution of the grayscale conversion.
 
 
+\subsection{Convolution}
+After generating the grayscale color space image, the majority of the algorithms used in image pre-processing for the HT can be applied via a convolution operation on the image.
+Convolution is an algorithm that is readily parallelizable when implemented on a GPU, and as such, there were multiple optimizations that were made to extract as much performance as possible for image pre-processing.
+By using a variety of masks across the images, it is possible to extract features or generate new kinds of maps that can be utilized by the HT\@.
+Image de-noising and gradient maps are both results of convolution operations with different masks.
 
-
-
-\subsection{Image Blurring}
+\subsubsection{Image Blurring}
 After the image is converted into grayscale color space, the image is de-noised by means of Gaussian blurring.
 This aids in edge map generation by filtering our high frequency elements from the image.
 To generate a blurred image, a convolution operation must be performed with a blurring mask. 
@@ -120,12 +125,11 @@ $\begin{bmatrix}
 \end{figure}
 
 
-
-\subsection{Edge Map Generation}
-After the image has been de-noised by blurring, an edge map must be generated using two convolution operations using the vertical and horitzontal variations of the Sobel operator as shown in \autoref{figure:sobelOperator}.
+\subsubsection{Gradient Map Generation}
+After the image has been de-noised by blurring, an edge map must be generated using two convolution operations using the horitzontal\ref*{sub@equation:horizontalSobel} and  vertical\ref*{sub@equation:verticalSobel} variations of the Sobel operator as shown in \autoref{figure:sobelOperator}.
 \begin{figure}[h] %[h] puts the figure 'here'
   \centering
-  \subfloat[A $3 \times 3$ Horizontal Sobel Operator]{
+  \subfloat[Horizontal Operator]{
   $\begin{bmatrix}
     -1 && -2 && -1 \\
     0 && 0 && 0 \\
@@ -133,7 +137,7 @@ After the image has been de-noised by blurring, an edge map must be generated us
   \end{bmatrix}$\label{equation:horizontalSobel}
   }
   \hfil
-  \subfloat[A $3 \times 3$ Vertical Sobel Operator]{
+  \subfloat[Vertical Operator]{
   $\begin{bmatrix}
     -1 && 0 && 1 \\
     -2 && 0 && 2 \\
@@ -143,22 +147,29 @@ After the image has been de-noised by blurring, an edge map must be generated us
   \caption{A $3 \times 3$ Sobel Operator}\label{figure:sobelOperator}
 \end{figure}
 
-After the convolution operation is performed with both masks the horitzontal gradient $G_x$ and vertical gardient $G_y$ are generated. 
-After which, the gradient magnitude can be calcualted using the gradient magnitude as shown in \autoref{equation:gradientMagnitude}
+\subsubsection{Grayscale Thesholding}
+After the convolution operation is performed with both masks the horitzontal gradient $G_x$ and vertical gradient $G_y$ are generated. 
+The gradient magnitude can be calculated using the gradient magnitude as shown in \autoref{equation:gradientMagnitude}.
 
 \begin{equation}
   G = \sqrt{{G_x}^2 + {G_y}^2}\label{equation:gradientMagnitude}
 \end{equation}
 
+Image thresholding must be applied in order to generate the final edge map.
+In our case, the thresholding value in our application was hard hard coded into our application where the value chosen based off of experimentation for our application.
+% % This is obviously not good.
 
 
-% To generate an edge map, our implementation employs the use of two convolution operations using the Sobel gradient mask in the X and Y directions.
-% Since our implementation does not require that the actual gradient be calculated, the 
+\subsection{Populate R-Table}
+After the image edge map 
+The parameter space, also referred to as an R-Table, contains 3 parameters.
+\begin{equation}X_{i}, Y_{i}, R_{i}\label{circle-parameters}\end{equation}
+Where $X_i$ and $Y_i$ are the center coordinates and $R_i$ is the radius of the detected circle.
 
 
 
 
-\begin{figure*}[t]
+\begin{figure*}%[t]
   \centering
   \subfloat[Input image containing circles.]{
   \includegraphics[width=2.5in]{images/input-circles}\label{fig:input-circles}
@@ -175,14 +186,6 @@ After which, the gradient magnitude can be calcualted using the gradient magnitu
 
 
 
-
-
-\subsection{Populate R-Table}
-The parameter space, also referred to as an R-Table, contains 3 parameters.
-\begin{equation}X_{i}, Y_{i}, R_{i}\label{circle-parameters}\end{equation}
-Where $X_i$ and $Y_i$ are the center coordinates and $R_i$ is the radius of the detected circle.
-
-
 \subsection{Serial Version}
 
 
@@ -197,7 +200,6 @@ Where $X_i$ and $Y_i$ are the center coordinates and $R_i$ is the radius of the 
 
 
 \bibliographystyle{ieeetr}
-% \bibliographystyle{plain}
 \bibliography{refs}
 
 
