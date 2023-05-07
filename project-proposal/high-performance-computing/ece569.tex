@@ -58,7 +58,7 @@ In this study, the Hough Transform was implemented on an NVIDIA 1070ti which res
 
 \section{Introduction}
 Modern image analysis algorithms are computationally intensive, generally requiring powerful system compute units and algorithms optimized for the application at hand in order to be effectively implemented in a system. 
-The Hough Transform(HT)\cite{BALLARD1981111} -– an algorithm used to parameterize shapes present in an image –- is one such algorithm that is computationally intensive for a traditional serial-style execution computer processing unit (CPU).
+The Hough Transform (HT)\cite{BALLARD1981111} -– an algorithm used to parameterize shapes present in an image –- is one such algorithm that is computationally intensive for a traditional serial-style execution computer processing unit (CPU).
 The algorithm requires that a parameter space be populated in order to detect shapes that are present in an edge map of the input image.
 Image processing algorithms lend themselves to parallelization very well, and thus, GPUs are traditionally used in conjunction with CPUs to speed up image processing algorithm execution.
 While upfront costs, such as memory transfer time, must be paid to utilize heterogeneous computing architectures, overall execution time speedup still may occur due to faster computation when utilizing GPU hardware.
@@ -110,13 +110,24 @@ Convolution is an algorithm that generates the convolution pixel by summing the 
 \end{equation}
 Where $m$ is the mask matrix and $s$ is the source image matrix, $u$ and $v$ are the mask matrix dimensions. In our case, the mask matrices are square matrices.
 Convolution is an algorithm that is readily parallelizable when implemented on a GPU, and as such, there were multiple optimizations that were made to extract as much performance as possible for image pre-processing.
-Our convolution kernels were implemented in three iterations. 
-A convolution kernel using global memory, a kernel utilizing shared memory stored in a 2D array, and a kernel utilizing shared memory stored in a 1D array.
+Our convolution kernels were implemented in two iterations. 
+A convolution kernel using global memory, a kernel utilizing shared memory stored in a 2D array.
 
-\subsubsection{Naive Convolution Implementation}
-When first implementing the convolution kernel, each thread calculates the convolution-pixel corresponding to its position. 
+
+\subsubsection*{Convolution Optimizations}
+In first iteration of the convolution kernel, each thread calculates the convolution-pixel corresponding to its position. 
 Bounds checking is conducted to ensure that thread divergence does not occur. 
-After which, the output pixel is accumulated by accessing the image data from global memory and conducting element-wise multiplication with the convolution mask. 
+Values are written to the global image by each respective thread.
+
+Constant memory in the GPU is limited to small sizes of data and it cannot be modified after instantiation, however, accesses to the data present in constant memory are faster than global memory.
+Because of this, the next iteration of the convolution kernel employed the use of constant memory when storing the mask. 
+By using the constant memory present in the GPU, the masks can be accessed with less latency, leading to faster execution times.
+
+After utilizing constant memory for the mask, the next optimization that was implementation iteration utilized the shared memory in the GPU to speed up convolution calculations.
+Limitations in shared memory size, while not as constringent as constant memory, are still more restrictive than global memory.
+Therefore, the use of batching was necessary when implementing a convolution kernel that utilizes shared memory. 
+Batching, that is, when each thread stores a respective piece of global memory within the current thread block's memory, separates the convolution operation into multiple segments.
+This separation of the convolution operation, also called tiling, allows a thread block to calculate the running sum of the convolution operation without exceeding the shared memory size restrictions of the corresponding thread block.
 
 
 
