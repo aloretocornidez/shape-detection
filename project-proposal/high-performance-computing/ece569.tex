@@ -123,6 +123,7 @@ Constant memory in the GPU is limited to small sizes of data and it cannot be mo
 Because of this, the next iteration of the convolution kernel employed the use of constant memory when storing the mask. 
 By using the constant memory present in the GPU, the masks can be accessed with less latency, leading to faster execution times.
 
+
 After utilizing constant memory for the mask, the next optimization that was implementation iteration utilized the shared memory in the GPU to speed up convolution calculations.
 Limitations in shared memory size, while not as constringent as constant memory, are still more restrictive than global memory.
 Therefore, the use of batching was necessary when implementing a convolution kernel that utilizes shared memory. 
