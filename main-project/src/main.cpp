@@ -1,16 +1,12 @@
 // Opencv header includes
-#include <opencv2/core/cuda.hpp>
-#include <opencv2/cudaimgproc.hpp>
-#include <opencv2/cudafilters.hpp>
 #include <opencv2/opencv.hpp>
 
 // Cuda header includes
 #include <cuda_runtime.h>
-#include <cuda.h>
+// #include <cuda.h>
 
 // Additional Includes
 #include "hough-transform.hpp"
-#include "interface.hpp"
 #include <iostream>
 
 // Namespace function declarations
@@ -58,6 +54,8 @@ int main(int argc, char **argv)
 
   // Execute the hough transform.
   houghTransform(inputImage, circles, method);
+  
+
 
   /*
    *
