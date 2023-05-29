@@ -17,7 +17,7 @@ using std::endl;
 
 int main(int argc, char **argv)
 {
-
+  std::cout << "Main started" << std::endl;
   // Usage for the program
   if (argc < 2)
   {
@@ -33,8 +33,12 @@ int main(int argc, char **argv)
     exit(-1);
   }
 
+  std::cout << "Reading Input image: " << argv[1] << std::endl;
+
   // Read the image file
   Mat inputImage = imread(argv[1]);
+
+  
 
   // Check for failure when opening the image.
   if (inputImage.empty())
@@ -53,6 +57,11 @@ int main(int argc, char **argv)
   std::vector<Vec3f> circles;
 
   // Execute the hough transform.
+  
+
+
+  std::cout << "Input method is: "<< argv[2] << std::endl;
+  
   houghTransform(inputImage, circles, method);
   
 

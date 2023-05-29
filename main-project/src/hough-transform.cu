@@ -413,6 +413,7 @@ __global__ void hough_transform_kernel_shared_local_accumulator(uchar *srcImage,
 
 
 // Change the algorithm so that each thread focuses on one part of the image.
+<<<<<<< Updated upstream
 __global__ void hough_transform_kernel_shared_local_accumulator2(uchar *srcImage, unsigned int *rTable, int imageRows, int imageColumns, int minimumRadius, int maximumRadius, int distance)
 {
     int row = threadIdx.y + blockIdx.y * blockDim.y;
@@ -459,6 +460,54 @@ __global__ void hough_transform_kernel_shared_local_accumulator2(uchar *srcImage
         }
     }
 }
+=======
+// __global__ void hough_transform_kernel_shared_local_accumulator(uchar *srcImage, unsigned int *rTable, int imageRows, int imageColumns, int minimumRadius, int maximumRadius, int distance)
+// {
+//     int row = threadIdx.y + blockIdx.y * blockDim.y;
+//     int column = threadIdx.x + blockIdx.x * blockDim.x;
+//
+//     extern __shared__ uchar *sharedSrcImage;
+//
+//     uchar *sharedSrcImageData = sharedSrcImage;
+//
+//     if (row < imageRows && column < imageColumns)
+//     {
+//         sharedSrcImage[row * imageColumns + column] = srcImage[row * imageColumns + column];
+//     }
+//
+//     __syncthreads();
+//
+//     // Check if the thread is within image bounds.
+//     if (row < (imageRows - minimumRadius) && row > minimumRadius && column < (imageColumns - minimumRadius) && column > minimumRadius)
+//     {
+//
+//         for (int radius = minimumRadius; radius < maximumRadius - minimumRadius; radius++)
+//         {
+//             int threshold = ((log10f(radius * 2 / 3)) * 80) / log10f(3);
+//             int accumulator = 0;
+//
+//             for (int theta = 0; theta < 360; theta++)
+//             {
+//                 int deltaX = cos(DEGREES_TO_RADIANS * theta) * radius;
+//                 int deltaY = sin(DEGREES_TO_RADIANS * theta) * radius;
+//
+//                 int imageIndex = (row + deltaY) * imageColumns + (column + deltaX);
+//
+//                 // int pixelValue = srcImage[imageIndex];
+//                 int pixelValue = sharedSrcImageData[imageIndex];
+//
+//                 if (pixelValue < 10)
+//                 {
+//
+//                     accumulator++;
+//                 }
+//             }
+//
+//             atomicAdd(&rTable[(radius * imageColumns * imageRows) + row * imageColumns + column], accumulator);
+//         }
+//     }
+// }
+>>>>>>> Stashed changes
 
 void parseRTable(std::vector<cv::Vec3f> &circles, unsigned int *rTable, int minimumRadius, int maximumRadius, int imageRows, int imageColumns)
 {
