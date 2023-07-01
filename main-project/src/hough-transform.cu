@@ -1,11 +1,11 @@
 #include "hough-transform.hpp"
 #include <iostream>
-#include <math.h>
 #include <opencv2/opencv.hpp>
 #include <cuda_runtime.h>
-#include <cmath>
-#include <iomanip>
-#include <vector>
+// #include <math.h>
+// #include <cmath>
+// #include <iomanip>
+// #include <vector>
 
 cudaError_t err;
 float milliseconds = 0;
@@ -28,16 +28,21 @@ float milliseconds = 0;
 #define GAUSSIAN_KERNEL_SIZE 5
 #define sigma 1.4
 #define EDGE_DETECTION_SIZE 3
+
+// Grayscale to RGB
+#define CHANNELS 3 // we have 3 channels corresponding to RGB
+// Gaussian Kernel convolution
+#define convolutionBlockDim 32
+
+
+// Masks declared as constant becuase they do not change during program execution.
 __constant__ float gaussianMask[GAUSSIAN_KERNEL_SIZE * GAUSSIAN_KERNEL_SIZE];
 __constant__ float edgeMask1[EDGE_DETECTION_SIZE * EDGE_DETECTION_SIZE];
 __constant__ float edgeMask2[EDGE_DETECTION_SIZE * EDGE_DETECTION_SIZE];
 
-// Grayscale to RGB
-#define CHANNELS 3 // we have 3 channels corresponding to RGB
+
 // The input image is encoded as unsigned characters [0, 255]
-__global__ void colorConvert(uchar *bgrImage,
-                             uchar *grayImage,
-                             int width, int height)
+__global__ void colorConvert(uchar *bgrImage, uchar *grayImage, int width, int height)
 {
     int x = threadIdx.x + blockIdx.x * blockDim.x;
     int y = threadIdx.y + blockIdx.y * blockDim.y;
@@ -57,8 +62,6 @@ __global__ void colorConvert(uchar *bgrImage,
     }
 }
 
-// Gaussian Kernel convolution
-#define convolutionBlockDim 32
 __global__ void gaussianConvolution(uchar *inputImage, uchar *outputImage, int height, int width, int maskWidth)
 {
     // int row = threadIdx.y + blockIdx.y * blockDim.y;
@@ -254,7 +257,6 @@ __global__ void combineXYEdge(uchar *inputImageX, uchar *inputImageY, uchar *out
     {
         outputImage[index] = 255;
     }
-
 }
 
 void cpuKernelHoughTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &srcCircles, int distance, int minimumRadius, int maximumRadius)
@@ -559,10 +561,15 @@ void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int meth
             sum += gaussianFilter[x + 2][y + 2];
         }
     }
+
     // normalising the Kernel
     for (int i = 0; i < 5; ++i)
+    {
         for (int j = 0; j < 5; ++j)
+        {
             gaussianFilter[i][j] /= sum;
+        }
+    }
 
     // Copying it to 1d array
     float *gaussian1D = (float *)malloc(GAUSSIAN_KERNEL_SIZE * GAUSSIAN_KERNEL_SIZE * sizeof(float));
@@ -573,7 +580,6 @@ void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int meth
             gaussian1D[i * GAUSSIAN_KERNEL_SIZE + j] = gaussianFilter[i][j];
         }
     }
-    std::cout << "Gaussian filter generated\n";
 
     cudaMemcpyToSymbol(gaussianMask, gaussian1D, GAUSSIAN_KERNEL_SIZE * GAUSSIAN_KERNEL_SIZE * sizeof(float));
 
@@ -582,22 +588,26 @@ void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int meth
 
     float sobelY[9] = {1, 2, 1, 0, 0, 0, -1, -2, -1};
     cudaMemcpyToSymbol(edgeMask2, sobelY, EDGE_DETECTION_SIZE * EDGE_DETECTION_SIZE * sizeof(float));
-    std::cout << "Sobel values generated\n";
 
     // Allocate memory for all arrays and intermediate results
     // Memory Declarations and Allocations
     uchar *hostBGRInput[NUM_IMAGES];
     uchar *deviceBGRInput[STREAM_SIZE];
+
     uchar *hostGrayImage[NUM_IMAGES];
     uchar *deviceGrayImage[STREAM_SIZE];
-    uchar *hostConvolved1[NUM_IMAGES];
-    uchar *deviceConvolved1[STREAM_SIZE];
-    uchar *hostConvolved2[NUM_IMAGES];
-    uchar *deviceConvolved2[STREAM_SIZE];
+
+    uchar *hostConvolved1[STREAM_SIZE];
+    uchar *hostConvolved2[STREAM_SIZE];
     uchar *hostConvolved3[NUM_IMAGES];
+
+    uchar *deviceConvolved1[STREAM_SIZE];
+    uchar *deviceConvolved2[STREAM_SIZE];
     uchar *deviceConvolved3[STREAM_SIZE];
+
     uchar *hostBinaryImage[NUM_IMAGES];
     uchar *deviceBinaryImage[STREAM_SIZE];
+
     // Allocating an r-table to populate parameters for each shape.
     // Allocate the R table on the GPU.
     unsigned int *deviceRTable[STREAM_SIZE];
@@ -672,10 +682,8 @@ void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int meth
             {
                 for (int k = 0; k < channels; k++)
                 {
-                    // std::cout << "Here1\n";
                     int index = (i * imageColumns * channels) + (j * channels) + k;
                     hostBGRInput[s][index] = pixelPtr[index];
-                    // std::cout << "Here2\n";
                 }
             }
         }
@@ -707,187 +715,183 @@ void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int meth
     for (int i = 0; i < STREAM_SIZE; i++)
     {
         cudaStreamCreate(&streams[i]);
-    }
+        cudaEvent_t kernelLaunch, kernelEnd;
+        cudaEventCreate(&kernelLaunch);
+        cudaEventCreate(&kernelEnd);
+        cudaEventRecord(kernelLaunch);
 
-    // BEGIN OPERATIONS
-    // Copy Input array to GPU
-    cudaEvent_t kernelLaunch, kernelEnd;
-    cudaEventCreate(&kernelLaunch);
-    cudaEventCreate(&kernelEnd);
-    cudaEventRecord(kernelLaunch);
-    std::cout << "Here\n";
-
-    for (int j = 0; j < NUM_IMAGES; j = j + STREAM_SIZE)
-    {
-        for (int i = 0; i < STREAM_SIZE; i++)
+        for (int j = 0; j < NUM_IMAGES; j = j + STREAM_SIZE)
         {
-            err = cudaMemcpyAsync(deviceBGRInput[i], hostBGRInput[i + j], imageRows * imageColumns * 3 * sizeof(uchar), cudaMemcpyHostToDevice, streams[i]);
-
-            colorConvert<<<gridDim, blockDim, 0, streams[i]>>>(deviceBGRInput[i], deviceGrayImage[i], imageColumns, imageRows);
-            err = cudaMemcpyAsync(hostGrayImage[i + j], deviceGrayImage[i], imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost, streams[i]);
-
-            gaussianConvolution<<<gaussianGridDim, blockDim, 0, streams[i]>>>(deviceGrayImage[i], deviceConvolved1[i], imageRows, imageColumns, GAUSSIAN_KERNEL_SIZE);
-            err = cudaMemcpyAsync(hostConvolved1[i + j], deviceConvolved1[i], imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost, streams[i]);
-
-            edgeConvolution1<<<edgeGridDim, blockDim, 0, streams[i]>>>(deviceConvolved1[i], deviceConvolved2[i], imageRows, imageColumns, EDGE_DETECTION_SIZE);
-            err = cudaMemcpyAsync(hostConvolved2[i + j], deviceConvolved2[i], imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost, streams[i]);
-
-            edgeConvolution2<<<edgeGridDim, blockDim, 0, streams[i]>>>(deviceConvolved1[i], deviceConvolved3[i], imageRows, imageColumns, EDGE_DETECTION_SIZE);
-            err = cudaMemcpyAsync(hostConvolved3[i + j], deviceConvolved3[i], imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost, streams[i]);
-
-            combineXYEdge<<<gaussianGridDim, blockDim, 0, streams[i]>>>(deviceConvolved2[i], deviceConvolved3[i], deviceBinaryImage[i], imageRows, imageColumns);
-            err = cudaMemcpyAsync(hostBinaryImage[i + j], deviceBinaryImage[i], imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost, streams[i]);
-
-            if (method == HOUGH_TRANSFORM_NAIVE_KERNEL)
+            for (int i = 0; i < STREAM_SIZE; i++)
             {
-                // cudaEvent_t startNaiveHoughTransform, stopNaiveHoughTransform;
-                // cudaEventCreate(&startNaiveHoughTransform);
-                // cudaEventCreate(&stopNaiveHoughTransform);
+                err = cudaMemcpyAsync(deviceBGRInput[i], hostBGRInput[i + j], imageRows * imageColumns * 3 * sizeof(uchar), cudaMemcpyHostToDevice, streams[i]);
 
-                // cudaEventRecord(startNaiveHoughTransform);
+                colorConvert<<<gridDim, blockDim, 0, streams[i]>>>(deviceBGRInput[i], deviceGrayImage[i], imageColumns, imageRows);
+                err = cudaMemcpyAsync(hostGrayImage[i + j], deviceGrayImage[i], imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost, streams[i]);
 
-                std::cout << "Executing Hough Transform on the Naive Kernel" << std::endl;
+                gaussianConvolution<<<gaussianGridDim, blockDim, 0, streams[i]>>>(deviceGrayImage[i], deviceConvolved1[i], imageRows, imageColumns, GAUSSIAN_KERNEL_SIZE);
+                err = cudaMemcpyAsync(hostConvolved1[i + j], deviceConvolved1[i], imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost, streams[i]);
 
-                dim3 mygrid(ceil(imageColumns / (BLOCK_DIMENSIONS * 1.0)), ceil(imageRows / (BLOCK_DIMENSIONS * 1.0)));
-                dim3 myblock(BLOCK_DIMENSIONS, BLOCK_DIMENSIONS);
+                edgeConvolution1<<<edgeGridDim, blockDim, 0, streams[i]>>>(deviceConvolved1[i], deviceConvolved2[i], imageRows, imageColumns, EDGE_DETECTION_SIZE);
+                err = cudaMemcpyAsync(hostConvolved2[i + j], deviceConvolved2[i], imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost, streams[i]);
 
-                hough_transform_kernel_naive<<<mygrid, myblock, 0, streams[i]>>>(deviceBinaryImage[i], deviceRTable[i], imageRows, imageColumns, minimumRadius, maximumRadius, distance);
+                edgeConvolution2<<<edgeGridDim, blockDim, 0, streams[i]>>>(deviceConvolved1[i], deviceConvolved3[i], imageRows, imageColumns, EDGE_DETECTION_SIZE);
+                err = cudaMemcpyAsync(hostConvolved3[i + j], deviceConvolved3[i], imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost, streams[i]);
 
-                // std::cout << "Hough Transform Naive Kernel Execution Complete" << std::endl;
-                // cudaEventRecord(stopNaiveHoughTransform);
-                // cudaEventSynchronize(stopNaiveHoughTransform);
-                // float milliseconds = 0;
-                // cudaEventElapsedTime(&milliseconds, startNaiveHoughTransform, stopNaiveHoughTransform);
+                combineXYEdge<<<gaussianGridDim, blockDim, 0, streams[i]>>>(deviceConvolved2[i], deviceConvolved3[i], deviceBinaryImage[i], imageRows, imageColumns);
+                err = cudaMemcpyAsync(hostBinaryImage[i + j], deviceBinaryImage[i], imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost, streams[i]);
 
-                // std::cout << "Execution Time on the GPU: " << milliseconds << std::endl;
+                if (method == HOUGH_TRANSFORM_NAIVE_KERNEL)
+                {
+                    // cudaEvent_t startNaiveHoughTransform, stopNaiveHoughTransform;
+                    // cudaEventCreate(&startNaiveHoughTransform);
+                    // cudaEventCreate(&stopNaiveHoughTransform);
+
+                    // cudaEventRecord(startNaiveHoughTransform);
+
+                    std::cout << "Executing Hough Transform on the Naive Kernel" << std::endl;
+
+                    dim3 mygrid(ceil(imageColumns / (BLOCK_DIMENSIONS * 1.0)), ceil(imageRows / (BLOCK_DIMENSIONS * 1.0)));
+                    dim3 myblock(BLOCK_DIMENSIONS, BLOCK_DIMENSIONS);
+
+                    hough_transform_kernel_naive<<<mygrid, myblock, 0, streams[i]>>>(deviceBinaryImage[i], deviceRTable[i], imageRows, imageColumns, minimumRadius, maximumRadius, distance);
+
+                    // std::cout << "Hough Transform Naive Kernel Execution Complete" << std::endl;
+                    // cudaEventRecord(stopNaiveHoughTransform);
+                    // cudaEventSynchronize(stopNaiveHoughTransform);
+                    // float milliseconds = 0;
+                    // cudaEventElapsedTime(&milliseconds, startNaiveHoughTransform, stopNaiveHoughTransform);
+
+                    // std::cout << "Execution Time on the GPU: " << milliseconds << std::endl;
+                }
+                else if (method == HOUGH_TRANSFORM_NAIVE_KERNEL2)
+                {
+                    // std::cout << "Executing Hough Transform on the Local Accumulator Kernel 2" << std::endl;
+                    // cudaEvent_t startNaiveHoughTransform, stopNaiveHoughTransform;
+                    // cudaEventCreate(&startNaiveHoughTransform);
+                    // cudaEventCreate(&stopNaiveHoughTransform);
+
+                    // cudaEventRecord(startNaiveHoughTransform);
+
+                    dim3 mygrid(ceil(imageColumns / (BLOCK_DIMENSIONS * 1.0)), ceil(imageRows / (BLOCK_DIMENSIONS * 1.0)));
+                    dim3 myblock(BLOCK_DIMENSIONS, BLOCK_DIMENSIONS);
+
+                    hough_transform_kernel_naive<<<mygrid, myblock>>>(deviceBinaryImage[i], deviceRTable[i], imageRows, imageColumns, minimumRadius, maximumRadius, distance);
+
+                    // std::cout << "Hough Transform Naive Kernel Execution Complete" << std::endl;
+                    // cudaEventRecord(stopNaiveHoughTransform);
+                    // cudaEventSynchronize(stopNaiveHoughTransform);
+                    // float milliseconds = 0;
+                    // cudaEventElapsedTime(&milliseconds, startNaiveHoughTransform, stopNaiveHoughTransform);
+
+                    // std::cout << "Execution Time on the GPU: " << milliseconds << std::endl;
+                }
+
+                err = cudaMemcpyAsync(hostRTable[i + j], deviceRTable[i], imageColumns * imageRows * (maximumRadius - minimumRadius) * sizeof(unsigned int), cudaMemcpyDeviceToHost, streams[i]);
+                // cudaStreamSynchronize(streams[i]);
+                // err = cudaMemcpyAsync(hostConvolved3[i + j], deviceConvolved3[i + j], imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost, streams[i]);
+                //
             }
-            else if (method == HOUGH_TRANSFORM_NAIVE_KERNEL2)
-            {
-                // std::cout << "Executing Hough Transform on the Local Accumulator Kernel 2" << std::endl;
-                // cudaEvent_t startNaiveHoughTransform, stopNaiveHoughTransform;
-                // cudaEventCreate(&startNaiveHoughTransform);
-                // cudaEventCreate(&stopNaiveHoughTransform);
-
-                // cudaEventRecord(startNaiveHoughTransform);
-
-                dim3 mygrid(ceil(imageColumns / (BLOCK_DIMENSIONS * 1.0)), ceil(imageRows / (BLOCK_DIMENSIONS * 1.0)));
-                dim3 myblock(BLOCK_DIMENSIONS, BLOCK_DIMENSIONS);
-
-                hough_transform_kernel_naive<<<mygrid, myblock>>>(deviceBinaryImage[i], deviceRTable[i], imageRows, imageColumns, minimumRadius, maximumRadius, distance);
-
-                // std::cout << "Hough Transform Naive Kernel Execution Complete" << std::endl;
-                // cudaEventRecord(stopNaiveHoughTransform);
-                // cudaEventSynchronize(stopNaiveHoughTransform);
-                // float milliseconds = 0;
-                // cudaEventElapsedTime(&milliseconds, startNaiveHoughTransform, stopNaiveHoughTransform);
-
-                // std::cout << "Execution Time on the GPU: " << milliseconds << std::endl;
-            }
-
-            err = cudaMemcpyAsync(hostRTable[i + j], deviceRTable[i], imageColumns * imageRows * (maximumRadius - minimumRadius) * sizeof(unsigned int), cudaMemcpyDeviceToHost, streams[i]);
-            // cudaStreamSynchronize(streams[i]);
-            // err = cudaMemcpyAsync(hostConvolved3[i + j], deviceConvolved3[i + j], imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost, streams[i]);
-            //
         }
+        cudaDeviceSynchronize();
+        cudaEventRecord(kernelEnd);
+        cudaEventSynchronize(kernelEnd);
+        milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, kernelLaunch, kernelEnd);
+        printf("Total %d Images time: %fms\n", NUM_IMAGES, milliseconds);
+        printf("Streams used: %d\n", STREAM_SIZE);
+        printf("estimated time for 30 images: %fms\n", milliseconds * (30.0 / NUM_IMAGES));
+
+        cv::Mat grayTest = cv::Mat(imageRows, imageColumns, CV_8UC1);
+        grayTest.data = hostGrayImage[0];
+        cv::imwrite("testImage4.jpg", grayTest);
+        // printf("Rows: %d, Cols: %d\n", imageRows, imageColumns);
+
+        cv::Mat gaussianTest = cv::Mat(imageRows, imageColumns, CV_8UC1);
+        gaussianTest.data = hostConvolved1[0];
+        cv::imwrite("testImage5.jpg", gaussianTest);
+        // printf("Rows: %d, Cols: %d\n", imageRows, imageColumns);
+
+        cv::Mat xConvTest = cv::Mat(imageRows, imageColumns, CV_8UC1);
+        xConvTest.data = hostConvolved2[0];
+        cv::imwrite("testImage6.jpg", xConvTest);
+        // printf("Rows: %d, Cols: %d\n", imageRows, imageColumns);
+
+        cv::Mat yConvTest = cv::Mat(imageRows, imageColumns, CV_8UC1);
+        yConvTest.data = hostConvolved3[0];
+        cv::imwrite("testImage7.jpg", yConvTest);
+        // printf("Rows: %d, Cols: %d\n", imageRows, imageColumns);
+
+        cv::Mat binaryTest = cv::Mat(imageRows, imageColumns, CV_8UC1);
+        binaryTest.data = hostBinaryImage[0];
+        cv::imwrite("testImage8.jpg", binaryTest);
+        // printf("Rows: %d, Cols: %d\n", imageRows, imageColumns);
+
+        // // Allocate GPU Memory Initialize pointer for the GPU memory
+        // uchar *gpuImageBuffer;
+        // cudaError_t err = cudaMalloc((void **)&gpuImageBuffer, imageRows * imageColumns * sizeof(uchar));
+        // if (err != cudaSuccess)
+        // {
+        //     printf("%s in %s at line %d\n", cudaGetErrorString(err), __FILE__, __LINE__);
+        //     exit(EXIT_FAILURE);
+        // }
+
+        /*
+         *
+         * Execute the hough transform on the specified kernel, populating the accumulator table.
+         *
+         */
+
+        // else if (method == HOUGH_TRANSFORM_SHARED_LOCAL_ACCUMULATOR)
+        // {
+        //     std::cout << "Executing Hough Transform on the Shared Memory Kernel." << std::endl;
+        //     if (sizeof(uchar) * imageRows * imageColumns > 64000 / 4.0)
+        //     {
+        //         printf("The image is too large to run using shared memory. Running on global memory kernel. Rows: %d, Columns: %d\n", imageRows, imageColumns);
+        //         exit(-1);
+        //     }
+        //     cudaEvent_t startNaiveHoughTransform, stopNaiveHoughTransform;
+        //     cudaEventCreate(&startNaiveHoughTransform);
+        //     cudaEventCreate(&stopNaiveHoughTransform);
+
+        //     cudaEventRecord(startNaiveHoughTransform);
+
+        //     dim3 mygrid(ceil(imageColumns / (BLOCK_DIMENSIONS * 1.0)), ceil(imageRows / (BLOCK_DIMENSIONS * 1.0)));
+        //     dim3 myblock(BLOCK_DIMENSIONS, BLOCK_DIMENSIONS);
+
+        //     hough_transform_kernel_naive<<<mygrid, myblock, sizeof(uchar) * imageRows * imageColumns>>>(gpuImageBuffer, deviceRTable, imageRows, imageColumns, minimumRadius, maximumRadius, distance);
+
+        //     // std::cout << "Hough Transform Naive Kernel Execution Complete" << std::endl;
+        //     cudaEventRecord(stopNaiveHoughTransform);
+        //     cudaEventSynchronize(stopNaiveHoughTransform);
+        //     float milliseconds = 0;
+        //     cudaEventElapsedTime(&milliseconds, startNaiveHoughTransform, stopNaiveHoughTransform);
+
+        //     std::cout << "Execution Time on the GPU: " << milliseconds << std::endl;
+        // }
+        // else
+        // {
+        //     std::cout << "Invalid Kernel Method Chosen. | (method): " << method << std::endl;
+        //}
+
+        /* Modications are not being made to the image, so no copy back to the host is required. */
+        // Copy data from device to host
+
+        // if (err != cudaSuccess)
+        // {
+        //     cudaFree(gpuImageBuffer);
+        //     printf("%s in %s at line %d\n", cudaGetErrorString(err), __FILE__, __LINE__);
+        //     exit(EXIT_FAILURE);
+        // }
+
+        parseRTable(circles, hostRTable[0], minimumRadius, maximumRadius, imageRows, imageColumns);
+
+        // Free allocated memory
+        cudaFree(deviceRTable);
+        // cudaFree(gpuImageBuffer);
+        // free(hostRTable[0]);
+        std::cout << "Cuda Memory Freed" << std::endl;
+
+        std::cout << "GPU Hough Transform Execution Complete" << std::endl;
     }
-    cudaDeviceSynchronize();
-    cudaEventRecord(kernelEnd);
-    cudaEventSynchronize(kernelEnd);
-    milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, kernelLaunch, kernelEnd);
-    printf("Total %d Images time: %fms\n", NUM_IMAGES, milliseconds);
-    printf("Streams used: %d\n", STREAM_SIZE);
-    printf("estimated time for 30 images: %fms\n", milliseconds * (30.0 / NUM_IMAGES));
-
-    cv::Mat grayTest = cv::Mat(imageRows, imageColumns, CV_8UC1);
-    grayTest.data = hostGrayImage[0];
-    cv::imwrite("testImage4.jpg", grayTest);
-    // printf("Rows: %d, Cols: %d\n", imageRows, imageColumns);
-
-    cv::Mat gaussianTest = cv::Mat(imageRows, imageColumns, CV_8UC1);
-    gaussianTest.data = hostConvolved1[0];
-    cv::imwrite("testImage5.jpg", gaussianTest);
-    // printf("Rows: %d, Cols: %d\n", imageRows, imageColumns);
-
-    cv::Mat xConvTest = cv::Mat(imageRows, imageColumns, CV_8UC1);
-    xConvTest.data = hostConvolved2[0];
-    cv::imwrite("testImage6.jpg", xConvTest);
-    // printf("Rows: %d, Cols: %d\n", imageRows, imageColumns);
-
-    cv::Mat yConvTest = cv::Mat(imageRows, imageColumns, CV_8UC1);
-    yConvTest.data = hostConvolved3[0];
-    cv::imwrite("testImage7.jpg", yConvTest);
-    // printf("Rows: %d, Cols: %d\n", imageRows, imageColumns);
-
-    cv::Mat binaryTest = cv::Mat(imageRows, imageColumns, CV_8UC1);
-    binaryTest.data = hostBinaryImage[0];
-    cv::imwrite("testImage8.jpg", binaryTest);
-    // printf("Rows: %d, Cols: %d\n", imageRows, imageColumns);
-
-    // // Allocate GPU Memory Initialize pointer for the GPU memory
-    // uchar *gpuImageBuffer;
-    // cudaError_t err = cudaMalloc((void **)&gpuImageBuffer, imageRows * imageColumns * sizeof(uchar));
-    // if (err != cudaSuccess)
-    // {
-    //     printf("%s in %s at line %d\n", cudaGetErrorString(err), __FILE__, __LINE__);
-    //     exit(EXIT_FAILURE);
-    // }
-
-    /*
-     *
-     * Execute the hough transform on the specified kernel, populating the accumulator table.
-     *
-     */
-
-    // else if (method == HOUGH_TRANSFORM_SHARED_LOCAL_ACCUMULATOR)
-    // {
-    //     std::cout << "Executing Hough Transform on the Shared Memory Kernel." << std::endl;
-    //     if (sizeof(uchar) * imageRows * imageColumns > 64000 / 4.0)
-    //     {
-    //         printf("The image is too large to run using shared memory. Running on global memory kernel. Rows: %d, Columns: %d\n", imageRows, imageColumns);
-    //         exit(-1);
-    //     }
-    //     cudaEvent_t startNaiveHoughTransform, stopNaiveHoughTransform;
-    //     cudaEventCreate(&startNaiveHoughTransform);
-    //     cudaEventCreate(&stopNaiveHoughTransform);
-
-    //     cudaEventRecord(startNaiveHoughTransform);
-
-    //     dim3 mygrid(ceil(imageColumns / (BLOCK_DIMENSIONS * 1.0)), ceil(imageRows / (BLOCK_DIMENSIONS * 1.0)));
-    //     dim3 myblock(BLOCK_DIMENSIONS, BLOCK_DIMENSIONS);
-
-    //     hough_transform_kernel_naive<<<mygrid, myblock, sizeof(uchar) * imageRows * imageColumns>>>(gpuImageBuffer, deviceRTable, imageRows, imageColumns, minimumRadius, maximumRadius, distance);
-
-    //     // std::cout << "Hough Transform Naive Kernel Execution Complete" << std::endl;
-    //     cudaEventRecord(stopNaiveHoughTransform);
-    //     cudaEventSynchronize(stopNaiveHoughTransform);
-    //     float milliseconds = 0;
-    //     cudaEventElapsedTime(&milliseconds, startNaiveHoughTransform, stopNaiveHoughTransform);
-
-    //     std::cout << "Execution Time on the GPU: " << milliseconds << std::endl;
-    // }
-    // else
-    // {
-    //     std::cout << "Invalid Kernel Method Chosen. | (method): " << method << std::endl;
-    //}
-
-    /* Modications are not being made to the image, so no copy back to the host is required. */
-    // Copy data from device to host
-
-    // if (err != cudaSuccess)
-    // {
-    //     cudaFree(gpuImageBuffer);
-    //     printf("%s in %s at line %d\n", cudaGetErrorString(err), __FILE__, __LINE__);
-    //     exit(EXIT_FAILURE);
-    // }
-
-    parseRTable(circles, hostRTable[0], minimumRadius, maximumRadius, imageRows, imageColumns);
-
-    // Free allocated memory
-    cudaFree(deviceRTable);
-    // cudaFree(gpuImageBuffer);
-    // free(hostRTable[0]);
-    std::cout << "Cuda Memory Freed" << std::endl;
-
-    std::cout << "GPU Hough Transform Execution Complete" << std::endl;
 }

@@ -49,3 +49,8 @@
 **/CMakeCache.txt
 **/*.cmake
 **/.vscode/
+
+**/*.jpg
+!**/test-circles.png
+**/.cache/
+**/**.code-workspace
