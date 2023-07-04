@@ -8,7 +8,7 @@
  */
 // Perform the Hough Transform, the final argument determines which kernel is used.
 /* The CPU Kernel currently does not generate an R-Table but the GPU kernels to. The R-Table is interpreted on the cpu.*/
-void houghTransform(cv::Mat &grayscaleInputImage, std::vector<cv::Vec3f> &circles, int method);
+void houghTransformInvoker(cv::Mat &grayscaleInputImage, std::vector<cv::Vec3f> &circles, int method);
 
 // Perform the Hough Transform on the CPU.
 void cpuKernelHoughTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &srcCircles);

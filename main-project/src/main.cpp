@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 
   // Execute the hough transform.
   std::cout << "Executing 'hough-transform' with method: " << executionMethod << std::endl;
-  houghTransform(inputImage, circles, executionMethod);
+  houghTransformInvoker(inputImage, circles, executionMethod);
 
   // Drawing circles on the image
   drawCircles(inputImage, circles);

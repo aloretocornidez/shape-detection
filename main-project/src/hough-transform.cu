@@ -34,15 +34,31 @@ float milliseconds = 0;
 // Gaussian Kernel convolution
 #define convolutionBlockDim 32
 
+struct houghParameters
+{
+    // The minimum distance between shapes.
+    int distance;
 
-// Masks declared as constant becuase they do not change during program execution.
+    // The minimum size of the circle.
+    int minimumRadius;
+
+    // The maximum size of the circle.
+    int maximumRadius;
+
+    // Image rows.
+    int imageRows;
+
+    // Image columns.
+    int imageColumns;
+};
+
+// Masks declared as constant because they do not change during program execution.
 __constant__ float gaussianMask[GAUSSIAN_KERNEL_SIZE * GAUSSIAN_KERNEL_SIZE];
 __constant__ float edgeMask1[EDGE_DETECTION_SIZE * EDGE_DETECTION_SIZE];
 __constant__ float edgeMask2[EDGE_DETECTION_SIZE * EDGE_DETECTION_SIZE];
 
-
 // The input image is encoded as unsigned characters [0, 255]
-__global__ void colorConvert(uchar *bgrImage, uchar *grayImage, int width, int height)
+__global__ void convertRGBtoGrayscale(uchar *bgrImage, uchar *grayImage, int width, int height)
 {
     int x = threadIdx.x + blockIdx.x * blockDim.x;
     int y = threadIdx.y + blockIdx.y * blockDim.y;
@@ -64,8 +80,6 @@ __global__ void colorConvert(uchar *bgrImage, uchar *grayImage, int width, int h
 
 __global__ void gaussianConvolution(uchar *inputImage, uchar *outputImage, int height, int width, int maskWidth)
 {
-    // int row = threadIdx.y + blockIdx.y * blockDim.y;
-    // int col = threadIdx.x + blockIdx.x * blockDim.x;
     // Assuming we know the blocm width, to use 2D notation
     __shared__ uchar sharedM[convolutionBlockDim][convolutionBlockDim];
     // uchar pixVal = 0;
@@ -259,33 +273,31 @@ __global__ void combineXYEdge(uchar *inputImageX, uchar *inputImageY, uchar *out
     }
 }
 
-void cpuKernelHoughTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &srcCircles, int distance, int minimumRadius, int maximumRadius)
+void cpuHoughTransformExecute(cv::Mat &srcImage, std::vector<cv::Vec3f> &srcCircles, houghParameters params)
 {
-    std::cout << "Executing the Hough Transform on the CPU." << std::endl;
-
-    if (minimumRadius < 0)
+    if (params.minimumRadius < 0)
     {
         std::cerr << "Minimum radius must be 1 or greater." << std::endl;
         exit(-1);
     }
-    if (minimumRadius == 0)
+    if (params.minimumRadius == 0)
     {
-        minimumRadius = 5;
+        params.minimumRadius = 5;
     }
-    if (maximumRadius == 0)
+    if (params.maximumRadius == 0)
     {
-        maximumRadius = std::min(srcImage.rows - 1, srcImage.cols - 1) / 2;
+        params.maximumRadius = std::min(srcImage.rows - 1, srcImage.cols - 1) / 2;
     }
 
     /* Begin Algoritm */
-    for (int radius = minimumRadius; radius < maximumRadius; radius++)
+    for (int radius = params.minimumRadius; radius < params.maximumRadius; radius++)
     {
         // Note, the threshold for the number of pixels is dynamically set.
         int threshold = ((log(radius * 2 / 3)) * 80) / log(3);
 
-        for (int row = radius; row < srcImage.rows - radius; row += distance)
+        for (int row = radius; row < srcImage.rows - radius; row += params.distance)
         {
-            for (int column = radius; column < srcImage.cols - radius; column += distance)
+            for (int column = radius; column < srcImage.cols - radius; column += params.distance)
             {
                 int accumulator = 0;
 
@@ -320,38 +332,8 @@ void cpuKernelHoughTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &srcCircl
 
 // This kernel uses the global memory to write to the R-table.
 // Each thread will test
-__global__ void hough_transform_kernel_naive(uchar *srcImage, unsigned int *rTable, int imageRows, int imageColumns, int minimumRadius, int maximumRadius, int distance)
-{
-    int row = threadIdx.y + blockIdx.y * blockDim.y;
-    int column = threadIdx.x + blockIdx.x * blockDim.x;
-
-    // Check if the thread is within image bounds.
-    if (row < (imageRows - minimumRadius) && row > minimumRadius && column < (imageColumns - minimumRadius) && column > minimumRadius)
-    {
-
-        for (int radius = minimumRadius; radius < maximumRadius - minimumRadius; radius++)
-        {
-            int threshold = ((log10f(radius * 2 / 3)) * 80) / log10f(3);
-            // printf("Threshold: %d\n", threshold);
-
-            for (int theta = 0; theta < 360; theta++)
-            {
-                int deltaX = cos(DEGREES_TO_RADIANS * theta) * radius;
-                int deltaY = sin(DEGREES_TO_RADIANS * theta) * radius;
-
-                int imageIndex = (row + deltaY) * imageColumns + (column + deltaX);
-
-                int pixelValue = srcImage[imageIndex];
-                if (pixelValue < 127)
-                {
-                    atomicAdd(&rTable[(radius * imageColumns * imageRows) + row * imageColumns + column], 1);
-                }
-            }
-        }
-    }
-}
-
-__global__ void hough_transform_kernel_naive2(uchar *srcImage, unsigned int *rTable, int imageRows, int imageColumns, int minimumRadius, int maximumRadius, int distance)
+__global__ void hough_transform_kernel_naive(uchar *srcImage, unsigned int *rTable,
+                                              int imageRows, int imageColumns, int minimumRadius, int maximumRadius, int distance)
 {
     int row = threadIdx.y + blockIdx.y * blockDim.y;
     int column = threadIdx.x + blockIdx.x * blockDim.x;
@@ -386,7 +368,8 @@ __global__ void hough_transform_kernel_naive2(uchar *srcImage, unsigned int *rTa
 }
 
 // Did not take into account the amount of memory available on the system.
-__global__ void hough_transform_kernel_shared_local_accumulator(uchar *srcImage, unsigned int *rTable, int imageRows, int imageColumns, int minimumRadius, int maximumRadius, int distance)
+__global__ void hough_transform_kernel_shared_local_accumulator(uchar *srcImage, unsigned int *rTable,
+                                                                int imageRows, int imageColumns, int minimumRadius, int maximumRadius, int distance)
 {
     int row = threadIdx.y + blockIdx.y * blockDim.y;
     int column = threadIdx.x + blockIdx.x * blockDim.x;
@@ -434,7 +417,8 @@ __global__ void hough_transform_kernel_shared_local_accumulator(uchar *srcImage,
 }
 
 // Change the algorithm so that each thread focuses on one part of the image.
-__global__ void hough_transform_kernel_shared_local_accumulator2(uchar *srcImage, unsigned int *rTable, int imageRows, int imageColumns, int minimumRadius, int maximumRadius, int distance)
+__global__ void hough_transform_kernel_shared_local_accumulator2(uchar *srcImage, unsigned int *rTable,
+                                                                 int imageRows, int imageColumns, int minimumRadius, int maximumRadius, int distance)
 {
     int row = threadIdx.y + blockIdx.y * blockDim.y;
     int column = threadIdx.x + blockIdx.x * blockDim.x;
@@ -481,7 +465,8 @@ __global__ void hough_transform_kernel_shared_local_accumulator2(uchar *srcImage
     }
 }
 
-void parseRTable(std::vector<cv::Vec3f> &circles, unsigned int *rTable, int minimumRadius, int maximumRadius, int imageRows, int imageColumns)
+void parseRTable(std::vector<cv::Vec3f> &circles, unsigned int *rTable, int minimumRadius,
+                 int maximumRadius, int imageRows, int imageColumns)
 {
 
     for (int row = minimumRadius; row < imageRows - minimumRadius; row++)
@@ -498,6 +483,7 @@ void parseRTable(std::vector<cv::Vec3f> &circles, unsigned int *rTable, int mini
 
                     // printf("Adding Circle at (row, column, radius) | (%d, %d, %d) | RValue: %d\n", row, column, radius, rValue);
 
+                    // Appending the coordinates of a circle if it is found.
                     circles.push_back({(float)(column), (float)(row), (float)(radius)});
 
                     // circles.push_back({(float)(row + minimumRadius), (float)(column + minimumRadius), (float)(radius + minimumRadius)});
@@ -507,21 +493,27 @@ void parseRTable(std::vector<cv::Vec3f> &circles, unsigned int *rTable, int mini
     }
 }
 
-void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int method)
+void houghTransformInvoker(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int method)
 {
+    houghParameters params;
     /* Parameters Until we make them modular */
+    params.distance = 1;
+    params.minimumRadius = 18;  // 20 is the min for the test image.
+    params.maximumRadius = 150; // 100 is max radius for the test image.
+    params.imageRows = srcImage.rows;
+    params.imageColumns = srcImage.cols;
+
     int distance = 1;
     int minimumRadius = 18;  // 20 is the min for the test image.
     int maximumRadius = 150; // 100 is max radius for the test image.
     int imageRows = srcImage.rows;
     int imageColumns = srcImage.cols;
+
     // printf("Channels: %d\n", srcImage.channels());
-    cv::imwrite("testImage3.jpg", srcImage);
 
     // Run Hough Transform on the CPU and return.
     if (method == 0)
     {
-
         cv::Mat grayscale;
         cv::cvtColor(srcImage, grayscale, cv::COLOR_BGR2GRAY);
 
@@ -531,8 +523,7 @@ void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int meth
 
         cudaEventRecord(cpuStart);
 
-        std::cout << "Executing Hough Transform on the CPU" << std::endl;
-        cpuKernelHoughTransform(grayscale, circles, distance, minimumRadius, maximumRadius);
+        cpuHoughTransformExecute(srcImage, circles, params);
 
         cudaEventRecord(cpuStop);
         cudaEventSynchronize(cpuStop);
@@ -540,6 +531,7 @@ void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int meth
         cudaEventElapsedTime(&milliseconds, cpuStart, cpuStop);
 
         std::cout << "Execution Time on the CPU: " << milliseconds << std::endl;
+
         return;
     }
 
@@ -591,21 +583,21 @@ void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int meth
 
     // Allocate memory for all arrays and intermediate results
     // Memory Declarations and Allocations
-    uchar *hostBGRInput[NUM_IMAGES];
+    uchar *hostBGRInput[STREAM_SIZE];
     uchar *deviceBGRInput[STREAM_SIZE];
 
-    uchar *hostGrayImage[NUM_IMAGES];
+    uchar *hostGrayImage[STREAM_SIZE];
     uchar *deviceGrayImage[STREAM_SIZE];
 
     uchar *hostConvolved1[STREAM_SIZE];
     uchar *hostConvolved2[STREAM_SIZE];
-    uchar *hostConvolved3[NUM_IMAGES];
+    uchar *hostConvolved3[STREAM_SIZE];
 
     uchar *deviceConvolved1[STREAM_SIZE];
     uchar *deviceConvolved2[STREAM_SIZE];
     uchar *deviceConvolved3[STREAM_SIZE];
 
-    uchar *hostBinaryImage[NUM_IMAGES];
+    uchar *hostBinaryImage[STREAM_SIZE];
     uchar *deviceBinaryImage[STREAM_SIZE];
 
     // Allocating an r-table to populate parameters for each shape.
@@ -647,29 +639,9 @@ void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int meth
     cudaDeviceSynchronize();
     std::cout << "Initial memory allocated\n";
 
-    // //Generate input array on Host
-    // std::vector<uchar> array;
-    // if (srcImage.isContinuous()){
-    //     // array.assign(mat.datastart, mat.dataend); // <- has problems for sub-matrix like mat = big_mat.row(i)
-    //     array.assign(srcImage.data, srcImage.data + srcImage.total()*srcImage.channels());
-    //     printf("Image is continuous\n");
-    // }
     // For our testing purposes, we will have copies of the same image
     uchar *pixelPtr = srcImage.ptr<uchar>(0, 0);
     int channels = srcImage.channels();
-    //
-
-    // for(int i = 0; i < foo.rows; i++)
-    // {
-    //     for(int j = 0; j < foo.cols; j++)
-    //     {
-    //         bgrPixel.val[0] = pixelPtr[i*foo.cols*cn + j*cn + 0]; // B
-    //         bgrPixel.val[1] = pixelPtr[i*foo.cols*cn + j*cn + 1]; // G
-    //         bgrPixel.val[2] = pixelPtr[i*foo.cols*cn + j*cn + 2]; // R
-
-    //         // do something with BGR values...
-    //     }
-    // }
 
     // Initialize Input Image
     // Debugging
@@ -726,7 +698,7 @@ void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int meth
             {
                 err = cudaMemcpyAsync(deviceBGRInput[i], hostBGRInput[i + j], imageRows * imageColumns * 3 * sizeof(uchar), cudaMemcpyHostToDevice, streams[i]);
 
-                colorConvert<<<gridDim, blockDim, 0, streams[i]>>>(deviceBGRInput[i], deviceGrayImage[i], imageColumns, imageRows);
+                convertRGBtoGrayscale<<<gridDim, blockDim, 0, streams[i]>>>(deviceBGRInput[i], deviceGrayImage[i], imageColumns, imageRows);
                 err = cudaMemcpyAsync(hostGrayImage[i + j], deviceGrayImage[i], imageRows * imageColumns * sizeof(uchar), cudaMemcpyDeviceToHost, streams[i]);
 
                 gaussianConvolution<<<gaussianGridDim, blockDim, 0, streams[i]>>>(deviceGrayImage[i], deviceConvolved1[i], imageRows, imageColumns, GAUSSIAN_KERNEL_SIZE);
@@ -755,28 +727,6 @@ void houghTransform(cv::Mat &srcImage, std::vector<cv::Vec3f> &circles, int meth
                     dim3 myblock(BLOCK_DIMENSIONS, BLOCK_DIMENSIONS);
 
                     hough_transform_kernel_naive<<<mygrid, myblock, 0, streams[i]>>>(deviceBinaryImage[i], deviceRTable[i], imageRows, imageColumns, minimumRadius, maximumRadius, distance);
-
-                    // std::cout << "Hough Transform Naive Kernel Execution Complete" << std::endl;
-                    // cudaEventRecord(stopNaiveHoughTransform);
-                    // cudaEventSynchronize(stopNaiveHoughTransform);
-                    // float milliseconds = 0;
-                    // cudaEventElapsedTime(&milliseconds, startNaiveHoughTransform, stopNaiveHoughTransform);
-
-                    // std::cout << "Execution Time on the GPU: " << milliseconds << std::endl;
-                }
-                else if (method == HOUGH_TRANSFORM_NAIVE_KERNEL2)
-                {
-                    // std::cout << "Executing Hough Transform on the Local Accumulator Kernel 2" << std::endl;
-                    // cudaEvent_t startNaiveHoughTransform, stopNaiveHoughTransform;
-                    // cudaEventCreate(&startNaiveHoughTransform);
-                    // cudaEventCreate(&stopNaiveHoughTransform);
-
-                    // cudaEventRecord(startNaiveHoughTransform);
-
-                    dim3 mygrid(ceil(imageColumns / (BLOCK_DIMENSIONS * 1.0)), ceil(imageRows / (BLOCK_DIMENSIONS * 1.0)));
-                    dim3 myblock(BLOCK_DIMENSIONS, BLOCK_DIMENSIONS);
-
-                    hough_transform_kernel_naive<<<mygrid, myblock>>>(deviceBinaryImage[i], deviceRTable[i], imageRows, imageColumns, minimumRadius, maximumRadius, distance);
 
                     // std::cout << "Hough Transform Naive Kernel Execution Complete" << std::endl;
                     // cudaEventRecord(stopNaiveHoughTransform);
