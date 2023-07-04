@@ -1,11 +1,6 @@
-// Opencv header includes
+// Header Inclusions
 #include <opencv2/opencv.hpp>
-
-// Cuda header includes
 #include <cuda_runtime.h>
-// #include <cuda.h>
-
-// Additional Includes
 #include "hough-transform.hpp"
 #include <iostream>
 
