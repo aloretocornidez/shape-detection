@@ -136,8 +136,7 @@ As will be discussed in a later section, this provided significant performance b
 
 As was covered in the GPU memory hierarchy overview in a previous section, we seek to exploit the benefits of GPU architecture to the fullest. A big component of convolution is the continuous access of the convolution kernel. As such, the next proposition was to transfer constant convolution kernels to the constant memory. Transferring the entire image was not a possibility, as the constant memory is very limited in capacity.
 
-While constant memory did provide a performance improvement it was relatively minor, and much lower than anticipated (as discussed further 
- below). To further improve performance,  a shared memory implementation was needed. There were some challenges to this, as thread blocks require more memory elements than there are threads in the block. To counter this, more thread blocks were launched with each block working on less amount of data. This improved performance to acceptable levels.
+While constant memory did provide a performance improvement it was relatively minor, and much lower than anticipated (as discussed further below). To further improve performance,  a shared memory implementation was needed. There were some challenges to this, as thread blocks require more memory elements than there are threads in the block. To counter this, more thread blocks were launched with each block working on less amount of data. This improved performance to acceptable levels.
 
 
 By using a variety of masks across the images, it is possible to extract features or generate new kinds of maps that can be utilized by the HT\@.
