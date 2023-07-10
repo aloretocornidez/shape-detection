@@ -20,22 +20,24 @@
     Faculty Advisor: Dr. Michael W Marcellin
   }
 
-\date{}
-
+\date{July 7th, 2023}
 \begin{document}
-
 \maketitle
-
 
 \section{\MakeUppercase{Abstract}}
 \noindent
 Modern day computer vision applications are frequently implemented using machine learning approaches.
-However, when training data is not adequate or data is not application specific, performance of implementations can suffer.
-This makes manual processing of the images a necessary step to retrieve the necessary shape data.
-Image processing implementations are computationally intensive but highly parallelizable in nature and thus it is often ideal to implement them on heterogeneous computer architectures.
-In this study, the Circle Detection Hough Transform was implemented on an NVIDIA 1070ti which resulted in a speedup of approximately 6950x for parameter space population of a 700$\times$700 pixel image when compared to a serial version implemented on an i7 8700K processor running at 4.7GHz.
-Image pre-processing was also implemented in a heterogeneous fashion rendering an approximate 840x speedup with further optimizations rendering 1.44x and 1.5x speedups respectively. 
-
+While these implementations can perform very well, the performance is heavily dependent on sufficient and accurate training data.
+Due to a lack of adequate training data, the Arizona Autonomous Vehicles Club (AZA) decided to implement the generalized hough transform to detect shapes in a live video feed from an unmanned aerial system (UAS). 
+The hough transform is computationally intensive and since real-time performance is required, a serial approach may not have the execution speed necessary for the application.
+Image processing techniques include matrix multiplication and convolution operations which are highly parallelizable.
+Therefore, the algorithm was parallelized and implemented on a graphics processing unit (GPU).
+Performance profiling was done on both machine learning and traditional approaches where execution time and accuracy were compared.
+% However, when training data is not adequate or data is not application specific, performance of implementations can suffer.
+% This makes manual processing of the images a necessary step to retrieve the necessary shape data.
+% Image processing implementations are computationally intensive but highly parallelizable in nature and thus it is often ideal to implement them on heterogeneous computer architectures.
+% In this study, the Circle Detection Hough Transform was implemented on an NVIDIA 1070ti which resulted in a speedup of approximately 6950x for parameter space population of a 700$\times$700 pixel image when compared to a serial version implemented on an i7 8700K processor running at 4.7GHz.
+% Image pre-processing was also implemented in a heterogeneous fashion rendering an approximate 840x speedup with further optimizations rendering 1.44x and 1.5x speedups respectively. 
 
 \section{\MakeUppercase{Introduction}}
 \noindent
@@ -45,13 +47,6 @@ The algorithm requires that a parameter space be populated in order to detect sh
 Image processing algorithms lend themselves to parallelization very well, and thus, GPUs are traditionally used in conjunction with CPUs to speed up image processing algorithm execution.
 While upfront costs, such as memory transfer time, must be paid when utilizing heterogeneous computing architectures, overall execution time speedup still may occur due to faster computation when utilizing GPU hardware.
 This makes programming end-to-end algorithms a viable option for when execution speedup is required for a specific application.
-
-
-
-
-
-
-
 
 \section{\MakeUppercase{Related Work}}
 \label{sec:relatedWork}
@@ -77,7 +72,7 @@ On the other hand, Vetter and Westermann implement many of the similar histogram
 Such as a local accumulator to reduce atomic operations and private histograms contained in shared memory to reduce memory contention. 
 However, this implementation is not suited to streaming because of the memory access pattern \cite{5872623}. 
 
-\begin{figure}%
+\begin{figure}
   \centering
   \subfloat[Input image containing circles.]{
   \includegraphics[width=2.5in]{figures/input-circles}\label{fig:input-circles}
@@ -89,23 +84,15 @@ However, this implementation is not suited to streaming because of the memory ac
   \caption{\ref{fig:input-circles} is the input image that was used as an input to the program.\ref{fig:detected-circles} is the output to the program when it is run.}
 \end{figure}
 
-
 \section{\MakeUppercase{Methodology}}
 \label{sec:Methodology}
 \noindent
-% \subsection{The Hough Transform}
 The HT implementation for our project detects circles that are present in an image compared to traditional line detection.
 The HT itself is the population of a parameter space array, also referred to as an R-Table.
 However, in order to run the population of the R-Table, multiple pre-processing routines are necessary to prepare the image for accurate shape detection.
-% to occur on the input image before the parameter space, also referred to as the R-Table, can be populated.
 The steps of the algorithm including pre-processing are color to grayscale conversion, edge detection, followed by population of the R-Table.
 Our proposed method to implementing the HT includes using streaming in order to pipeline memory transfer with convolution calculations and R-Table population.
 
-
-
-
-
-% Steps of the hough transform.
 \begin{figure}
   \begin{itemize}
     \item RGB to Grayscale conversion of the input image.
@@ -119,7 +106,6 @@ Our proposed method to implementing the HT includes using streaming in order to 
 \noindent
 Grayscale conversion of an image lends itself well to parallelization depending on the encoding of the image.
 In our case, the input image used an RGB-RGB pixel ordering scheme, allowing for coalesced memory accesses from the GPU's global memory.
-
 
 \subsection{Convolution}
 \noindent
@@ -135,7 +121,6 @@ Convolution is an algorithm that is readily parallelizable when implemented on a
 Our convolution kernels were implemented in three iterations. 
 A convolution kernel using global memory, one using constant memory for the mask, and a kernel utilizing shared memory stored in a 2D array.
 
-
 \subsubsection*{Convolution Optimizations}
 \noindent
 Convolution is a high-priority algorithm for the researchers' implementation.
@@ -149,7 +134,6 @@ Each thread is mapped to a single pixel image, meaning that for a m x n image, m
 Each thread accesses surrounding pixels, as well as the convolution kernel (or mask).
 Finally, once the computation is done, the result is stored back in global memory by the thread.
 Bounds checking is primordial to properly operate on images with dimensions not evenly divisible by the block size.
-
 
 As will be discussed in a later section, this provided significant performance benefits.
 However, further optimizations are possible.
@@ -173,9 +157,7 @@ Image denoising and gradient maps are both results of convolution operations wit
 After the image is converted into grayscale color space, the image is de-noised by means of Gaussian blurring.
 This aids in edge map generation by filtering our high frequency elements from the image.
 To generate a blurred image, a convolution operation must be performed with a blurring mask. 
-Our implementation uses a $5 \times 5$ Gaussian blurring mask where $\sigma = 1.4$ as shown in \ref{equation:gaussian5by5}.
-
-
+Our implementation uses a $5 \times 5$ Gaussian blurring mask where $\sigma = 1.4$ as shown in figure \ref{equation:gaussian5by5}.
 
 \begin{figure} % puts the figure 'here'
   \centering
@@ -188,9 +170,8 @@ Our implementation uses a $5 \times 5$ Gaussian blurring mask where $\sigma = 1.
 \end{bmatrix}$\caption{A $5 \times 5$ Gaussian blurring mask where $\sigma = 1.4$}\label{equation:gaussian5by5}
 \end{figure}
 
-
 \subsubsection*{Gradient Map Generation}
-After the image has been denoised by blurring, an edge map must be generated using two convolution operations using the horizontal\ref*{sub@equation:horizontalSobel} and  vertical\ref{sub@equation:verticalSobel} variations of the Sobel operator as shown in \ref{figure:sobelOperator}.
+After the image has been denoised by blurring, an edge map must be generated using two convolution operations using the horizontal (figure \ref{sub@equation:horizontalSobel}) and  vertical\ref{sub@equation:verticalSobel} variations of the Sobel operator as shown in figure \ref{figure:sobelOperator}.
 \begin{figure} % puts the figure 'here'
   \centering
   \subfloat[Horizontal Operator]{
@@ -214,7 +195,7 @@ After the image has been denoised by blurring, an edge map must be generated usi
 \subsubsection*{Grayscale Thesholding}
 \noindent
 After the convolution operation is performed with both masks the horizontal gradient $G_x$ and vertical gradient $G_y$ are generated. 
-The gradient magnitude can be calculated using the gradient magnitude, $G$, as shown in \ref{equation:gradientMagnitude}.
+The gradient magnitude can be calculated using the gradient magnitude, $G$, as shown in figure \ref{equation:gradientMagnitude}.
 
 \begin{equation}
   G = \sqrt{{G_x}^2 + {G_y}^2}\label{equation:gradientMagnitude}
@@ -222,8 +203,6 @@ The gradient magnitude can be calculated using the gradient magnitude, $G$, as s
 
 Image thresholding must be applied in order to generate the final edge map.
 In our case, the thresholding value in our application was hard hard coded into our application where the value was chosen based off of experimentation for our application, as well as the problem domain for AZA.
-% % This is obviously not good.
-
 
 \subsection*{Histogram Generation}
 \subsubsection*{R-Table Generation}
@@ -267,7 +246,6 @@ In order to allow the image to fit on shared memory, the thread workload must be
 By splitting the circles into four quadrants, each thread block loads only a quarter of the image, reducing the amount of memory space required for each memory block to 30.625kB. 
 This algorithm while allowing for faster memory accesses than global memory after the image has been loaded on to hardware is quite directly translated from a serial implementation.
 
-
 \subsubsection*{A Different Kind of Implementation}
 The previous implementations of the algorithm thread number as the center of the circle and scan all image pixels that should be a part of the circle.
 While this implementation is very direct, it is is heavily bottle-necked by memory accesses. 
@@ -279,15 +257,12 @@ This algorithm would also make traditional histogram population optimization suc
 This change in the algorithm increases computation time in proportion to memory transfer time, better utilizing GPU resources as well as optimizing the kernel for the use of CUDA streaming.
 Due to time constraints and lack of manpower, this algorithm was not implemented in this project.
 
-
 \subsection*{Cuda Streaming}
 With the individual algorithms optimized, this project was nearing completion. However, upon speaking to other teams and our PI, it was evident that system resources were not being utilized to the fullest. Even for pre-processing alone, the ratio of computation time to memory transfer time was approximately 1.4:1.0. This presents an interesting scenario, as it means that the memory unit remains idle while computations happen. As such, a potential opportunity for streaming had been found.
 Creating a streaming implementation is simultaneously an easy task and a complicated one. It is easy to implement because it does not require any changes to individual kernels. However, plenty of the main code needed changes, such as changing mallocs to cudaHostAlloc(), creating for loops for streams, among a plethora of changes.
 To perform this analysis, two experiments were done. The first one involves running all the pre-processing on several streams, while the second experiment was streaming on the entire algorithm. Results are reflected below, however they were not as good as hoped.
 
 \section{\MakeUppercase{Evaluation and Validation}}
-
-
 \begin{figure}
 \begin{center}
 \begin{tabular}{ |c|c|c|c|} 
@@ -301,7 +276,7 @@ To perform this analysis, two experiments were done. The first one involves runn
 \end{figure}
 \subsection{Convolution Optimizations}
 
-As seen from the previous table \ref{table:convolutionTimes}, GPU optimization of convolution was a success! The convolution speedup test involved running convolution on a 720x1280 image witha 5x5 kernel on each of the described methods 10 times, and taking the average of all the attempts for each category. Note that the shared memory implementation is not a standalone implementation. Rather, it is built upon the constant memory implementation as well. 
+As seen from the previous table (figure \ref{table:convolutionTimes}), GPU optimization of convolution was a success! The convolution speedup test involved running convolution on a 720x1280 image witha 5x5 kernel on each of the described methods 10 times, and taking the average of all the attempts for each category. Note that the shared memory implementation is not a standalone implementation. Rather, it is built upon the constant memory implementation as well. 
 \begin{figure}
 \centering
 \includegraphics[width=2.5in]{figures/ConvolutionSpeedup}\caption{Speedup amount vs serial implementation.}\label{figure:convolution-speedup}
@@ -326,7 +301,7 @@ The third implementation attempts to load the image into shared memory. However,
 \end{center}
 \end{figure}
 
-As seen in \ref{table:histogramGeneration}, the serial implementation, run on an Intel Core i7 8700k @ 3.7 GHz executed the population of the R-Table in approximately 284.36 seconds.
+As seen in figure \ref{table:histogramGeneration}, the serial implementation, run on an Intel Core i7 8700k @ 3.7 GHz executed the population of the R-Table in approximately 284.36 seconds.
 The first implementation, utilizing the global memory on the GPU using global memory and an atomic add operation within the loop executed the population of the R-Table in approximately 4.090 seconds.
 This second implementation on the GPU executed the population of the R-Table in approximately 4.067 seconds.
 Speedup from the serial implementation to the naive GPU implementation is 69.5x.
@@ -334,7 +309,6 @@ Speedup from the naive GPU implementation to the local accumulator memory is neg
 The reason for this being the case has to do with the fact that each thread is tied to one set of parameters at any given time.
 Different parameters are being populated by different threads there is no memory contention among atomic operations. 
 Changing the algorithm to require less image accesses per thread and instead focusing on populating individual parameters would have been a more fruitful approach to optimizing this step of the HT algorithm.\label{section:histogramGeneration}
-
 
 \subsection{Streaming}
 As mentioned beforehand, streaming was a consideration for a possible performance improvement. While streaming does not increase latency for a single image, it increases overall throughput by pipelining the kernels. The first experiment involves a streaming implementation of all pre-processing kernels, namely Grayscaling, and three convolution kernels, on a set of 60 images. Timing and performance analysis was done, and the throughput measurement includes memory transfer overhead (sending image for kernel operations, and retrieving the output). Here are the results:
@@ -350,7 +324,7 @@ Seeing the potential success of streaming, the decision was made to create a str
 \includegraphics[width=2.5in]{figures/StreamsComplete}\caption{Speedup vs \# of streams for complete process}\label{figure:streamComplete}
 \end{figure}
 
-As shown in figure 9, results were not as anticipated. Streaming provided less of a performance improvement than predicted, and by quite a large margin. Upon a root analysis cause, it was determined that the computation time on the Hough Transform far exceeded both pre-processing and memory transfer overhead. Therefore, any performance improvement was largely small in comparison to the Hough Transform. This means that the goal performance of 30 FPS was not met.
+As shown in figure \ref{figure:streamComplete}, results were not as anticipated. Streaming provided less of a performance improvement than predicted, and by quite a large margin. Upon a root analysis cause, it was determined that the computation time on the Hough Transform far exceeded both pre-processing and memory transfer overhead. Therefore, any performance improvement was largely small in comparison to the Hough Transform. This means that the goal performance of 30 FPS was not met.
 
 
 
