@@ -1,99 +1,141 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Just because a reference is listed in this file, does not mean that it will
-% appear in the PDF version of the paper.  BibTeX will only grab the references
-% you use with a \cite{} command in the .tex file.
-%
-% You have to run the BibTeX command separately from the LaTeX command.  The
-% references will not be automatically generated, you have to run BibTeX.
-%
-% If you want anything to appear capitalized in the title, you have to wrap it
-% with {curly braces}.  For example, "IRIG" will end up looking like "irig"
-% in the PDF file, unless you use "{IRIG}."
-%
-% The `` characters give you an "open quotation" mark, the '' characters, or
-% the " character give you a "close quotation" mark.
-%
-% Notice that we use "and" to separate the individual author's names from
-% each other.  LaTeX will automatically insert commas in the right places
-% in the PDF file.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
-@misc{CcsdsOrangeBook,
-  title =   {Low Density Parity Check Codes for Use in 
-Near-{Earth} and Deep Space Applications {(131.1-O-2 Orange Book)}},
-  author =   {{Consultive Committee for Space Data Systems (CCSDS)}},
-  month =    {Sep.},
-  year =     2007,
+@article{BALLARD1981111,
+  title    = {Generalizing the Hough transform to detect arbitrary shapes},
+  journal  = {Pattern Recognition},
+  volume   = {13},
+  number   = {2},
+  pages    = {111-122},
+  year     = {1981},
+  issn     = {0031-3203},
+  doi      = {https://doi.org/10.1016/0031-3203(81)90009-1},
+  url      = {https://www.sciencedirect.com/science/article/pii/0031320381900091},
+  author   = {D.H. Ballard},
+  keywords = {Image processing, Hough transform, Shape recognition, Pattern recognition, Parallel algorithms},
+  abstract = {The Hough transform is a method for detecting curves by exploiting the duality between points on a curve and parameters of that curve. The initial work showed how to detect both analytic curves(1,2) and non-analytic curves,(3) but these methods were restricted to binary edge images. This work was generalized to the detection of some analytic curves in grey level images, specifically lines,(4) circles(5) and parabolas.(6) The line detection case is the best known of these and has been ingeniously exploited in several applications.(7,8,9) We show how the boundaries of an arbitrary non-analytic shape can be used to construct a mapping between image space and Hough transform space. Such a mapping can be exploited to detect instances of that particular shape in an image. Furthermore, variations in the shape such as rotations, scale changes or figure ground reversals correspond to straightforward transformations of this mapping. However, the most remarkable property is that such mappings can be composed to build mappings for complex shapes from the mappings of simpler component shapes. This makes the generalized Hough transform a kind of universal transform which can be used to find arbitrarily complex shapes.}
 }
 
 
 
-@InProceedings{ChalfantIrving,
-  author =   {T. Chalfant and C. Irving},
-  title =    {Range Telemetry Improvement and Modernization},
-  booktitle =    {Proc. Int. Telemetering Conf.},
-  pages =    {294--303},
-  year =     1997,
-  address =  {Las Vegas, NV},
-  month =    {Oct.}
+
+@INPROCEEDINGS{acceleratingConvolution-basedModel,
+
+  author={Qi Liu and Zi Huang and Fuqiao Hu},
+
+  booktitle={2015 International Conference on Estimation, Detection and Information Fusion (ICEDIF)}, 
+
+  title={Accelerating convolution-based detection model on GPU}, 
+
+  year={2015},
+
+  volume={},
+
+  number={},
+
+  pages={61-66},
+
+  doi={10.1109/ICEDIF.2015.7280163}
+}
+
+@ARTICLE{otsu-method,
+
+  author={Otsu, Nobuyuki},
+
+  journal={IEEE Transactions on Systems, Man, and Cybernetics}, 
+
+  title={A Threshold Selection Method from Gray-Level Histograms}, 
+
+  year={1979},
+
+  volume={9},
+
+  number={1},
+
+  pages={62-66},
+
+  doi={10.1109/TSMC.1979.4310076}}
+
+@electronic{nvidia-docs,
+ title     = "CUDA Toolkit Documentation",
+ url       = "https://docs.nvidia.com/cuda/"
 }
 
 
 
-@Book{CoverBook,
-  author =       {T.~M.~Cover and J.~A.~Thomas},
-  title =        {Elements of Information Theory},
-  publisher =    {Wiley},
-  year =         2006,
-  address =      {New Jersey}
+@unpublished{LectureA,
+  Author = {Ridcully, Mustrum},
+  Institution = {Unseen University},
+  Howpublished = {University Lecture},
+  Year = {2000},
+  Title = {An Introduction to Crossbow Hunting}
 }
 
-
-
-@InProceedings{DapperHill,
-  author =       {M.~J.~Dapper and T.~J.~Hill},
-  title =        {{SBPSK}: {A} Robust Bandwidth-Efficient Modulation for Hard-Limited Channels},
-  booktitle =    {Proc. {IEEE} Military Commun. Conf.},
-  year =         1984,
-  month =        {Oct.},
+@article{document-parsing,
+author = {Chellapilla, Kumar and Puri, Sidd and Simard, Patrice},
+year = {2006},
+month = {10},
+pages = {},
+title = {High Performance Convolutional Neural Networks for Document Processing}
 }
 
-
-
-@Article{ForneyVa,
-  author =       {G.~David~Forney},
-  title =        {The {V}iterbi algorithm},
-  journal =      {Proc. {IEEE}},
-  year =         1973,
-  volume =       61,
-  pages =        {268--278},
-  number =       3,
-  month =        {Mar.}
+@misc{vasilache2015fast,
+      title={Fast Convolutional Nets With fbfft: A GPU Performance Evaluation}, 
+      author={Nicolas Vasilache and Jeff Johnson and Michael Mathieu and Soumith Chintala and Serkan Piantino and Yann LeCun},
+      year={2015},
+      eprint={1412.7580},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
 }
 
+@INPROCEEDINGS{9229640,
 
+  author={Lu, Gangzhao and Zhang, Weizhe and Wang, Zheng},
 
-@Manual{Irig106-04,
-  title =        {IRIG Standard 106-04: Telemetry Standards},
-  organization = {Range Commanders Council Telemetry Group},
-  address =      {Range Commanders Council, White Sands Missile Range,
-New Mexico},
-  year =         2004,
-  note =         {(Available on-line at
-{http://www.ntia.doc.gov/osmhome/106.pdf})}
-}
+  booktitle={2020 IEEE International Conference on Cluster Computing (CLUSTER)}, 
 
+  title={Optimizing GPU Memory Transactions for Convolution Operations}, 
 
+  year={2020},
 
-@Article{LiSimon,
-  author =   {L.~Li and M.~Simon},
-  title =    {{P}erformance of Coded {OQPSK} and {MIL-STD SOQPSK} With Iterative Decoding},
-  journal =  {{IEEE} Trans. Commun.},
-  year =     2004,
-  volume =   52,
-  pages =    {1890--1900},
-  number =	 11,
-  month =    {Nov.}
-}
+  volume={},
+
+  number={},
+
+  pages={399-403},
+
+  doi={10.1109/CLUSTER49012.2020.00050}}
+
+@INPROCEEDINGS{9324376,
+
+  author={Gocho, Masato and Arii, Motofumi},
+
+  booktitle={IGARSS 2020 - 2020 IEEE International Geoscience and Remote Sensing Symposium}, 
+
+  title={Efficient GPU-based local histogram analyzer for change detection in satellite SAR images}, 
+
+  year={2020},
+
+  volume={},
+
+  number={},
+
+  pages={304-307},
+
+  doi={10.1109/IGARSS39084.2020.9324376}}
+
+@INPROCEEDINGS{5872623,
+
+  author={Vetter, Christoph and Westermann, Rüdiger},
+
+  booktitle={2011 IEEE International Symposium on Biomedical Imaging: From Nano to Macro}, 
+
+  title={Optimized GPU histograms for multi-modal registration}, 
+
+  year={2011},
+
+  volume={},
+
+  number={},
+
+  pages={1227-1230},
+
+  doi={10.1109/ISBI.2011.5872623}}
+

@@ -76,32 +76,47 @@ Image pre-processing was also implemented in a heterogeneous fashion rendering a
 
 
 \section{\MakeUppercase{Introduction}}
-
 \noindent
-The Introduction goes here. The Introduction introduces readers to the paper. It might include some background information (including a brief literature review), why the paper was written, what the paper is for, for whom it was written, and a brief outline of its main contents/sections.
+Modern image analysis algorithms are computationally intensive, generally requiring powerful system compute units and algorithms optimized for the application at hand in order to be effectively implemented in a system. 
+The Hough Transform (HT)\cite{BALLARD1981111} - an algorithm used to parameterize shapes present in an image –- is one such algorithm that is computationally intensive for a traditional serial-style execution computer processing unit (CPU).
+The algorithm requires that a parameter space be populated in order to detect shapes that are present in an edge map of the input image.
+Image processing algorithms lend themselves to parallelization very well, and thus, GPUs are traditionally used in conjunction with CPUs to speed up image processing algorithm execution.
+While upfront costs, such as memory transfer time, must be paid when utilizing heterogeneous computing architectures, overall execution time speedup still may occur due to faster computation when utilizing GPU hardware.
+This makes programming end-to-end algorithms a viable option for when execution speedup is required for a specific application.
 
 
+\section{\MakeUppercase{Related Work}}
+The HT contains many pre-processing algorithms that must be run on an input image that has objects that must be detected.
+In our case, we want to detect the circles that are present in an image.
+The image processing algorithms that are present in the HT include grayscale conversion, multiple instances of convolution and histogram generation of parameterized shapes.
 
-\section{\MakeUppercase{The Body}}
-\label{sec:Body}
+\subsection{Convolution}
+Many different implementations have been created for convolution. Chellapilla et al.\cite{document-parsing} implemented an unrolled loop for convolution operations.
+In addition, the Fast Fourier Transform has been used to convert the convolution operation into a multiplication operation\cite{vasilache2015fast}.
+Other implementations\cite{9229640}of the convolution operation optimized the reduction of memory transactions.
+Ultimately, our group decided to utilize tiling to conduct the matrix multiplications required for the convolution operation.
 
-\noindent
-You should add sections to organize your paper as needed. Typically there is a lot of text, some equations, and some figures and tables as needed. With LaTeX, the template formats a lot of things for you, and so we will just include a few representative examples of equations/figures/etc. Keep in mind there is a 10-page limit for papers at ITC. Here are some citations of a single item~\cite{CcsdsOrangeBook} and multiple items~\cite{ChalfantIrving,CoverBook,DapperHill,ForneyVa,Irig106-04,LiSimon}, notice that these include examples of conference papers, journal papers, etc.
 
-~\\
-\noindent
-Here is an example of an equation
-\begin{equation}
-E = mc^2.
-\label{eq:EnergyMass}
-\end{equation}
-That equation ended its sentence, so it has a period at the end. We can reference~\eqref{eq:EnergyMass} by using its number. An example figure is shown in Figure~\ref{fig:Downsample}, where we again reference something using its number.
+% \section{\MakeUppercase{The Body}}
+% \label{sec:Body}
 
-\begin{figure}
-\centering\includegraphics[width=3.75in]{figures/Downsample}
-\caption{Downsampling operation.}
-\label{fig:Downsample}
-\end{figure}
+% \noindent
+% You should add sections to organize your paper as needed. Typically there is a lot of text, some equations, and some figures and tables as needed. With LaTeX, the template formats a lot of things for you, and so we will just include a few representative examples of equations/figures/etc. Keep in mind there is a 10-page limit for papers at ITC. Here are some citations of a single item~\cite{CcsdsOrangeBook} and multiple items~\cite{ChalfantIrving,CoverBook,DapperHill,ForneyVa,Irig106-04,LiSimon}, notice that these include examples of conference papers, journal papers, etc.
+
+% ~\\
+% \noindent
+% Here is an example of an equation
+% \begin{equation}
+% E = mc^2.
+% \label{eq:EnergyMass}
+% \end{equation}
+% That equation ended its sentence, so it has a period at the end. We can reference~\eqref{eq:EnergyMass} by using its number. An example figure is shown in Figure~\ref{fig:Downsample}, where we again reference something using its number.
+
+% \begin{figure}
+% \centering\includegraphics[width=3.75in]{figures/Downsample}
+% \caption{Downsampling operation.}
+% \label{fig:Downsample}
+% \end{figure}
 
 
 
