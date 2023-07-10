@@ -1,1 +1,1 @@
-pdflatex ItcLatexTemplate.tex ./../refs.bib ./references.bib ItcLatexTemplate.blg ItcLatexTemplate.bbl figures/*
+pdflatex ItcLatexTemplate.tex ITC.sty ./references.bib ItcLatexTemplate.blg figures/* && clear
